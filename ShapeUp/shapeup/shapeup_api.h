@@ -76,7 +76,7 @@ public:
         }
 
         // Perform a first local-global solve (and initialize system)
-        m_pdAPI.update();
+        m_pdAPI.update(true);
 
         m_isInitialized = true;
         return true;
@@ -139,7 +139,7 @@ public:
                     m_pdAPI.addConstraints(conGroup);
             }
             updateVertexStatus();
-            m_pdAPI.update();
+            m_pdAPI.update(true);
             m_usedShapeConstraint = 0;
         });
         m_buttonEdgeSprings = b;
@@ -163,7 +163,7 @@ public:
                     m_pdAPI.addConstraints(conGroup);
             }
             updateVertexStatus();
-            m_pdAPI.update();
+            m_pdAPI.update(true);
             m_usedShapeConstraint = 1;
         });
 
@@ -186,7 +186,7 @@ public:
                     m_pdAPI.addConstraints(conGroup);
             }
             updateVertexStatus();
-            m_pdAPI.update();
+            m_pdAPI.update(true);
             m_usedShapeConstraint = 2;
         });
 
@@ -212,7 +212,7 @@ public:
             addCenterConstraint();
             updateVertexStatus();
             m_viewer->clearSelection();
-            m_pdAPI.update();
+            m_pdAPI.update(true);
         });
 
         b = new Button(shapeup_win, "Fix Selection");
@@ -222,7 +222,7 @@ public:
             if (selVerts.size() == 0) return;
             addPositionConstraintGroup(selVerts);
             m_viewer->clearSelection();
-            m_pdAPI.update();
+            m_pdAPI.update(true);
         });
 
         b = new Button(shapeup_win, "Select Boundary");
@@ -254,7 +254,7 @@ public:
         b->setCallback([this]() {
             if (!m_isInitialized) return;
             addFlatnessConstraintsToSelection(1.);
-            m_pdAPI.update();
+            m_pdAPI.update(true);
             m_viewer->clearSelection();
             m_usedShapeConstraint = false;
         });
@@ -312,7 +312,7 @@ public:
     void addIsometricOneRingConstraints( ProjDyn::Scalar weight = 1.) {
         std::vector<ProjDyn::ConstraintPtr> iso_constraints;
         const ProjDyn::Positions& sim_verts = m_initialPositions;
-        std::vector<ProjDyn::VertexStar>& vStars = makeVertexStars(m_pdAPI.getPositions().rows(), m_pdAPI.getTriangles());
+        std::vector<ProjDyn::VertexStar> vStars = makeVertexStars(m_pdAPI.getPositions().rows(), m_pdAPI.getTriangles());
         ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_initialPositions, m_pdAPI.getTriangles());
         Surface_mesh* smesh = m_viewer->getMesh();
         for (auto v : smesh->vertices()) {
@@ -475,7 +475,7 @@ public:
                 newTargetPos.row(i) += translate.transpose();
             }
             std::dynamic_pointer_cast<PositionConstraintGroup>(m_grabGroup->constraints[0])->setTargetPositions(newTargetPos);
-            if (m_viewer) m_pdAPI.update();
+            if (m_viewer) m_pdAPI.update(true);
             m_isUpdating = false;
         }
     }

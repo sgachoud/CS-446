@@ -24,6 +24,15 @@ void projdyn_release_grab() {
         pd_api_ptr->releaseGrab();
     }
 }
+bool projdyn_preload(Viewer* viewer) {
+    if (pd_api_ptr) {
+        pd_api_ptr->stop();
+        return true;
+    }
+    else {
+        return false;
+    }
+}
 bool projdyn_setmesh(Viewer* viewer) {
     if (pd_api_ptr) {
         return pd_api_ptr->setMesh(false);
@@ -42,7 +51,7 @@ int main(int argc, char** argv) {
 		// Create a new mesh viewer app, which will add a screen to nanogui
 		// The callback function is triggered when loading a new mesh and (re-)initializes the
 		// projective dynamics simulator with the new vertices, faces and tetrahedrons
-		nanogui::ref<Viewer> app = new Viewer("Projective Dynamics", nullptr, projdyn_setmesh);
+		nanogui::ref<Viewer> app = new Viewer("Projective Dynamics", nullptr, projdyn_setmesh, projdyn_preload);
 		app->setGrabCallbacks(projdyn_grab, projdyn_release_grab);
 
         // Initialize the projective dynamics GUI

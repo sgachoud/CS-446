@@ -61,6 +61,7 @@ using namespace nanogui;
 typedef unsigned long Index;
 
 constexpr float INITIAL_GRAB_RADIUS = 20;
+constexpr float DEFAULT_SCALE = 0.5;
 
 enum VertexStatus {
     Default, Selected, Pinned, Movable
@@ -68,7 +69,7 @@ enum VertexStatus {
 
 class Viewer : public nanogui::Screen {
 public:
-    Viewer(std::string title, bool (*pre_draw_callback)(Viewer*) = nullptr, bool (*mesh_load_callback)(Viewer*) = nullptr)
+    Viewer(std::string title, bool (*pre_draw_callback)(Viewer*) = nullptr, bool (*mesh_load_callback)(Viewer*) = nullptr, bool (*pre_mesh_load_callback)(Viewer*) = nullptr)
         :
         nanogui::Screen(Eigen::Vector2i(1024, 768), title) {
 
@@ -77,9 +78,17 @@ public:
 
 		m_pre_draw_callback = pre_draw_callback;
 		m_mesh_load_callback = mesh_load_callback;
+        m_pre_mesh_load_callback = pre_mesh_load_callback;
     }
 
     void loadMesh(string filename) {
+        if (m_pre_mesh_load_callback) {
+            if (!m_pre_mesh_load_callback(this)) {
+                std::cout << "Error on callback before loading mesh!" << std::endl;
+                return;
+            }
+        }
+
         if (!mesh.read(filename)) {
             std::cerr << "Mesh not found, exiting." << std::endl;
             exit(-1);
@@ -101,6 +110,23 @@ public:
             }
         }
 
+        std::cout << "Scale before: " << dist_max;
+
+        // Rescale mesh, such that dist_max = SCALE;
+        for (auto v : mesh.vertices()) {
+            mesh.position(v) = (mesh.position(v) - mesh_center) * (DEFAULT_SCALE / dist_max) + mesh_center;
+        }
+        dist_max = DEFAULT_SCALE;
+
+        float dist_after = 0.0f;
+        for (auto v : mesh.vertices()) {
+            if (distance(mesh_center, mesh.position(v)) > dist_after) {
+                dist_after = distance(mesh_center, mesh.position(v));
+            }
+        }
+
+        std::cout << ", scale after: " << dist_after << std::endl; 
+
         mCamera.arcball = Arcball(2.);
         mCamera.arcball.setSize(mSize);
         mCamera.modelZoom = 2/dist_max;
@@ -115,18 +141,18 @@ public:
         }
 	}
 
-	void updateShaderVertices(const MatrixXf& vPos) {
-        //if (!m_reupload_vertices) {
+	void updateShaderVertices(const MatrixXf& vPos, bool forced = false) {
+        if ((!m_reupload_vertices) || forced) {
             m_updated_shader_verts = vPos;
             m_reupload_vertices = true;
-        //}
+        }
 	}
 
-    void updateShaderNormals(const MatrixXf& vNormals) {
-        //if (!m_reupload_normals) {
+    void updateShaderNormals(const MatrixXf& vNormals, bool forced = false) {
+        if ((!m_reupload_normals) || forced) {
             m_updated_shader_normals = vNormals;
             m_reupload_normals = true;
-        //}
+        }
     }
 
     void updateVertexStatus(const Eigen::Matrix<int, 1, -1>& vStatus) {
@@ -139,26 +165,24 @@ public:
     }
 
     void updateVertexStatusVisualization() {
-        //if (!m_reupload_vertex_selections) {
-            m_updated_vertex_selections.setZero(3, n_vertices);
-            for (Index i = 0; i < m_current_vertex_status.cols(); i++) {
-                switch (m_current_vertex_status(0, i)) {
-                case VertexStatus::Movable:
-                    m_updated_vertex_selections.col(i) = Vector3f(0.133, 0.694, 0.298);
-                    break;
-                case VertexStatus::Pinned:
-                    m_updated_vertex_selections.col(i) = Vector3f(0.5, 0.0, 0.0);
-                    break;
-                case VertexStatus::Selected:
-                    m_updated_vertex_selections.col(i) = Vector3f(0.0, 0.635, 0.909);
-                    break;
-                default:
-                    m_updated_vertex_selections.col(i) = Vector3f(0., 0., 0.);
-                }
+        m_updated_vertex_selections.setZero(3, n_vertices);
+        for (Index i = 0; i < std::max(m_updated_vertex_selections.cols(), m_updated_vertex_selections.cols()); i++) {
+            switch (m_current_vertex_status(0, i)) {
+            case VertexStatus::Movable:
+                m_updated_vertex_selections.col(i) = Vector3f(0.133, 0.694, 0.298);
+                break;
+            case VertexStatus::Pinned:
+                m_updated_vertex_selections.col(i) = Vector3f(0.5, 0.0, 0.0);
+                break;
+            case VertexStatus::Selected:
+                m_updated_vertex_selections.col(i) = Vector3f(0.0, 0.635, 0.909);
+                break;
+            default:
+                m_updated_vertex_selections.col(i) = Vector3f(0., 0., 0.);
             }
-            updateVertexSelectionVisualization();
-            m_reupload_vertex_selections = true;
-        //}
+        }
+        updateVertexSelectionVisualization();
+        m_reupload_vertex_selections = true;
     }
 
     void updateVertexSelectionVisualization() {
@@ -169,6 +193,15 @@ public:
             m_updated_vertex_selections.col(selVInd) = Vector3f(0.0, 0.635, 0.909);
         }
         m_reupload_vertex_selections = true;
+    }
+
+    void setFloorHeight(float floorHeight) {
+        m_floorHeight = floorHeight;
+        m_floorHeightChanged = true;
+    }
+
+    void showFloor(bool show) {
+        m_showFloor = show;
     }
 
     void meshProcess() {
@@ -219,6 +252,44 @@ public:
         mShader.uploadAttrib("position", mesh_points);
         mShader.uploadAttrib("normal", normals_attrib);
         mShader.uploadAttrib("color", vertex_color);
+
+        // Initialize floor geom and shader
+        int floor_grid_length = 50;
+        int num_floor_points = floor_grid_length * floor_grid_length;
+        int num_floor_faces = (floor_grid_length - 1) * (floor_grid_length - 1) * 2;
+        m_floorPoints.resize(3, num_floor_points);
+        MatrixXf floor_normals(3, num_floor_points);
+        MatrixXu floor_indices(3, num_floor_faces);
+        float floor_min_xy = -100;
+        float floor_max_xy = 100;
+        float floor_cell_length = (float)(floor_max_xy - floor_min_xy) / (float)floor_grid_length;
+        for (int x = 0; x < floor_grid_length; x++) {
+            for (int y = 0; y < floor_grid_length; y++) {
+                m_floorPoints(0, x * floor_grid_length + y) = floor_min_xy + floor_cell_length * x;
+                m_floorPoints(1, x * floor_grid_length + y) = m_floorHeight;
+                m_floorPoints(2, x * floor_grid_length + y) = floor_min_xy + floor_cell_length * y;
+                floor_normals(0, x * floor_grid_length + y) = 0;
+                floor_normals(1, x * floor_grid_length + y) = 1;
+                floor_normals(2, x * floor_grid_length + y) = 0;
+            }
+        }
+        for (int x = 0; x < floor_grid_length - 1; x++) {
+            for (int y = 0; y < floor_grid_length - 1; y++) {
+                int cell_ind = (x * (floor_grid_length - 1) + y) * 2;
+                floor_indices(0, cell_ind) = x * floor_grid_length + y;
+                floor_indices(1, cell_ind) = (x + 1) * floor_grid_length + y;
+                floor_indices(2, cell_ind) = x * floor_grid_length + (y + 1);
+                floor_indices(0, cell_ind + 1) = (x + 1) * floor_grid_length + y;
+                floor_indices(1, cell_ind + 1) = (x + 1) * floor_grid_length + (y + 1);
+                floor_indices(2, cell_ind + 1) = x * floor_grid_length + (y + 1);
+
+            }
+        }
+        m_numFloorFaces = floor_indices.cols();
+        mFloorShader.bind();
+        mFloorShader.uploadIndices(floor_indices);
+        mFloorShader.uploadAttrib("position", m_floorPoints);
+        mFloorShader.uploadAttrib("normal", floor_normals);
 
         MatrixXf selected(3, n_vertices);
         selected.setZero();
@@ -338,6 +409,60 @@ public:
             "        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
             "    }\n"
             "    c *= fcolor;\n"
+            "    if (intensity == vec3(0.0)) {\n"
+            "        c = intensity;\n"
+            "    }\n"
+            "    color = vec4(c, 1.0);\n"
+            "}"
+        );
+
+        mFloorShader.init(
+            "floor_shader",
+
+            /* Vertex shader */
+            "#version 330\n"
+            "uniform mat4 MV;\n"
+            "uniform mat4 P;\n"
+
+            "in vec3 position;\n"
+            "in vec3 normal;\n"
+
+            "out vec3 fnormal;\n"
+            "out vec3 view_dir;\n"
+            "out vec3 light_dir;\n"
+
+            "void main() {\n"
+            "    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+            "    gl_Position = P * vpoint_mv;\n"
+            "    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+            "    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+            "    view_dir = -vpoint_mv.xyz;\n"
+            "}",
+
+            /* Fragment shader */
+            "#version 330\n"
+            "uniform vec3 intensity;\n"
+
+            "in vec3 fnormal;\n"
+            "in vec3 view_dir;\n"
+            "in vec3 light_dir;\n"
+
+            "out vec4 color;\n"
+
+            "void main() {\n"
+            "    vec3 c = vec3(0.0);\n"
+            "    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
+            "    vec3 n = normalize(fnormal);\n"
+            "    vec3 v = normalize(view_dir);\n"
+            "    vec3 l = normalize(light_dir);\n"
+            "    float lambert = dot(n,l);\n"
+            "    if(lambert > 0.0) {\n"
+            "        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
+            "        vec3 v = normalize(view_dir);\n"
+            "        vec3 r = reflect(-l,n);\n"
+            "        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
+            "    }\n"
+            "    c *= vec3(0.23, 0.29, 0.4);\n"
             "    if (intensity == vec3(0.0)) {\n"
             "        c = intensity;\n"
             "    }\n"
@@ -563,6 +688,20 @@ public:
             mShader.setUniform("intensity", colors);
             mShader.drawIndexed(GL_TRIANGLES, 0, n_faces);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+
+        if (m_showFloor) {
+            mFloorShader.bind();
+            if (m_floorHeightChanged) {
+                m_floorPoints.row(1).setConstant(m_floorHeight);
+                mFloorShader.uploadAttrib("position", m_floorPoints);
+                m_floorHeightChanged = false;
+            }
+            Vector3f colors(0.98, 0.59, 0.04);
+            mFloorShader.setUniform("MV", mv);
+            mFloorShader.setUniform("P", p);
+            mFloorShader.setUniform("intensity", colors);
+            mFloorShader.drawIndexed(GL_TRIANGLES, 0, m_numFloorFaces);
         }
 
         if (true) {
@@ -853,6 +992,7 @@ private:
 
     // Variables for the viewer
     nanogui::GLShader mShader;
+    nanogui::GLShader mFloorShader;
     nanogui::GLShader mSelectedVertexShader;
     nanogui::GLShader mSelectionQuadShader;
     nanogui::Window *window;
@@ -884,6 +1024,13 @@ private:
     Vector2i m_selectionStart, m_selectionEnd;
     std::vector<Index> m_selectedVertices;
 
+    // Floor height and points
+    MatrixXf m_floorPoints;
+    float m_floorHeight = 0;
+    bool m_floorHeightChanged = false;
+    bool m_showFloor = false;
+    int m_numFloorFaces = 0;
+
     PopupButton *popupCurvature;
     FloatBox<float>* coefTextBox;
     IntBox<int>* iterationTextBox;
@@ -913,6 +1060,10 @@ private:
 
 	// Callback function to be called after loading a mesh
 	bool (*m_mesh_load_callback)(Viewer*) = nullptr;
+
+    // Callback function to be called before loading a mesh, 
+    // but after the load button has been pushed
+    bool (*m_pre_mesh_load_callback)(Viewer*) = nullptr;
 
 
 };

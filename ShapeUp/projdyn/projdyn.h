@@ -228,33 +228,33 @@ namespace ProjDyn {
 			m_velocities.setZero(m_positions.rows(), 3);
 		}
 
-		const Triangles& getTriangles() {
+		const Triangles& getTriangles() const {
 			return m_triangles;
 		}
 
-		const Tetrahedrons& getTetrahedrons() {
+		const Tetrahedrons& getTetrahedrons() const {
 			return m_tetrahedrons;
 		}
 
 		// Positions of the deformed mesh
-		const Positions& getPositions() {
+		const Positions& getPositions() const {
 			return m_positions;
 		}
 
 		// Positions of the rest-state mesh
-		const Positions& getInitialPositions() {
+		const Positions& getInitialPositions() const {
 			return m_initial_positions;
 		}
 
 		// Returns the number of outer vertices.
 		// Note that the vertices with index 0, ..., numOuterVerts-1 are the vertices on
 		// the surface triangles of the mesh, while the rest are inner vertices.
-		Index getNumOuterVerts() {
+		Index getNumOuterVerts() const {
 			return m_num_outer_verts;
 		}
 
 		// Returns the total number of vertices (inner and outer vertices)
-		Index getNumVerts() {
+		Index getNumVerts() const {
 			return m_num_verts;
 		}
 
@@ -303,7 +303,7 @@ namespace ProjDyn {
 		// Only if this returns true will the step() method perform a simulation
 		// taking into account the current mesh and constraints.
 		// Otherwise, initializeSystem() needs to be called first.
-		bool isInitialized() {
+		bool isInitialized() const {
 			return (m_system_init && m_lhs_updated);
 		}
 
@@ -365,6 +365,7 @@ namespace ProjDyn {
 		}
 
 		void addFloorConstraints(Scalar weightMultiplier, Scalar forceFactor = 1.) {
+            if (m_num_verts <= 0) return;
 			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
             std::vector<ConstraintPtr> floorCons;
 			for (Index v = 0; v < m_num_verts; v++) {
@@ -373,6 +374,10 @@ namespace ProjDyn {
             addConstraints(std::make_shared<ConstraintGroup>("Floor", floorCons, 1));
 			m_system_init = false;
 		}
+
+        Scalar getFloorHeight() const {
+            return m_floorHeight;
+        }
 
 	protected:
 		// Mesh faces, vertices and tetrahedrons

@@ -43,6 +43,17 @@ public:
             m_textBox->setValue(ProjDyn::floatToString(v));
             m_constraint->weight = vv;
         });
+
+        m_textBox->setEditable(true);
+        m_textBox->setCallback([this](const std::string& val) -> bool {
+            float v = std::stof(val);
+            float vv = std::pow(10000, v - 1);
+            m_constraint->weight = vv;
+            this->setValue(v);
+            this->finalCallback()(v);
+            return true;
+        });
+
     }
 
     virtual bool mouseEnterEvent(const Vector2i& p, bool enter) override {

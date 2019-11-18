@@ -12,6 +12,7 @@
 #include "projdyn.h"
 #include "projdyn_tetgen.h"
 #include <nanogui/slider.h>
+#include <nanogui/checkbox.h>
 #include "viewer.h"
 #include "projdyn_widgets.h"
 
@@ -45,14 +46,27 @@ public:
         pd_win->setPosition(Vector2i(15, 230));
         pd_win->setLayout(new GroupLayout());
 
-        Button* runsim_b = new Button(pd_win, "Run Simulation");
-        runsim_b->setCallback([this]() {
+        Widget* panel = new Widget(pd_win);
+        panel->setLayout(new BoxLayout(nanogui::Orientation::Vertical, nanogui::Alignment::Middle, 0, 10));
+
+        m_startButton = new Button(panel, "Run Simulation");
+        m_startButton->setFlags(Button::RadioButton);
+        m_startButton->setPushed(false);
+        m_startButton->setCallback([this]() {
             start();
         });
 
-        Button* stopsim_b = new Button(pd_win, "Stop Simulation");
-        stopsim_b->setCallback([this]() {
+        m_stopButton = new Button(panel, "Stop Simulation");
+        m_stopButton->setFlags(Button::RadioButton);
+        m_stopButton->setPushed(true);
+        m_stopButton->setCallback([this]() {
             stop();
+        });
+
+        CheckBox* updateNormalsCB = new CheckBox(pd_win, "Update Normals");
+        updateNormalsCB->setChecked(m_updateNormals);
+        updateNormalsCB->setCallback([this](bool state) {
+            m_updateNormals = state;
         });
 
         Button* reset_b = new Button(pd_win, "Reset Positions");
@@ -83,6 +97,8 @@ public:
             bool was_active = m_simActive;
             stop();
             m_simulator.addFloorConstraints(10., 3.);
+            m_viewer->setFloorHeight(m_simulator.getFloorHeight());
+            m_viewer->showFloor(true);
             updateConstraintsGUI();
             if (was_active) {
                 start();
@@ -139,7 +155,9 @@ public:
             stop();
             clearConstraints();
             m_simulator.resetPositions();
+            m_viewer->showFloor(false);
             uploadPositions();
+            updateConstraintsGUI();
         });
 
         Label* iterations_label = new Label(pd_win, "Num Loc-Glob Its: ");
@@ -184,9 +202,13 @@ public:
             ConstraintSlider* slider = new ConstraintSlider(panel, m_viewer, m_simulator.getNumVerts(), g);
 
             // Re-initialize system and update positions once the user lets go of the slider
-            slider->setFinalCallback([this](float v) {
+            slider->setFinalCallback([this, slider](float v) {
+                slider->setValue(v);
+                bool wasRunning = m_simActive;
+                stop();
                 m_simulator.initializeSystem();
                 update();
+                if (wasRunning) start();
             });
         }
 
@@ -247,13 +269,21 @@ public:
         m_simulator.setMesh(vertices, faces, tets);
 
         // Compute neighbourhood info
-        m_vertexStars = ProjDyn::makeVertexStars(vertices.size(), faces);;
+        m_vertexStars = ProjDyn::makeVertexStars(vertices.size(), faces);
+
+        if (m_startButton && m_stopButton) {
+            m_startButton->setPushed(false);
+            m_stopButton->setPushed(true);
+        }
+
+        updateConstraintsGUI();
+        m_viewer->showFloor(false);
 
         return true;
     }
 
     // Performs a time step and updates the positions that are drawn in the shader window
-    bool update() {
+    bool update(bool forcedUpload = false) {
         if (!m_simulator.isInitialized()) {
             if (!m_simulator.initializeSystem())
                 return false;
@@ -262,7 +292,7 @@ public:
         // Simulate one time step
         m_simulator.step(m_numIterations);
 
-        return uploadPositions();
+        return uploadPositions(forcedUpload);
     }
 
     // Starts a thread that runs the simulation by constantly
@@ -272,8 +302,13 @@ public:
 
         // Make sure the simulator is properly initialized
         if (!m_simulator.isInitialized()) {
-            if (!m_simulator.initializeSystem())
+            if (!m_simulator.initializeSystem()) {
+                if (m_startButton && m_stopButton) {
+                    m_startButton->setPushed(false);
+                    m_stopButton->setPushed(true);
+                }
                 return false;
+            }
         }
 
         // Create a thread that runs the simulation
@@ -290,6 +325,11 @@ public:
         }
         );
 
+        if (m_startButton && m_stopButton) {
+            m_startButton->setPushed(true);
+            m_stopButton->setPushed(false);
+        }
+
         return true;
     }
 
@@ -299,11 +339,15 @@ public:
             m_simActive = false;
             m_simulationThread.join();
         }
+        if (m_startButton && m_stopButton) {
+            m_startButton->setPushed(false);
+            m_stopButton->setPushed(true);
+        }
     }
 
     // Extract positions, convert them to column-wise tripples of floats and
     // upload them to the OpenGL buffer
-    bool uploadPositions() {
+    bool uploadPositions(bool forcedUpload = false) {
         const ProjDyn::Positions& pos = m_simulator.getPositions();
 
         // Initialize matrix if not done already
@@ -318,9 +362,9 @@ public:
             m_uploadPos(1, i) = (float)pos(i, 1);
             m_uploadPos(2, i) = (float)pos(i, 2);
         }
-        m_viewer->updateShaderVertices(m_uploadPos);
+        m_viewer->updateShaderVertices(m_uploadPos, forcedUpload);
 
-        if (UPDATE_NORMALS && m_vertexStars.size() >= m_simulator.getNumOuterVerts()) {
+        if (m_updateNormals && m_vertexStars.size() >= m_simulator.getNumOuterVerts()) {
             // Initialize matrix if not done already
             if (m_uploadNormals.cols() != pos.rows() || m_uploadNormals.rows() != 3) {
                 m_uploadNormals.resize(3, m_simulator.getNumOuterVerts());
@@ -329,19 +373,21 @@ public:
             const ProjDyn::Triangles& tris = m_simulator.getTriangles();
             m_uploadNormals.setZero();
 #pragma omp parallel for
-            for (int t = 0; t < tris.rows(); t++) {
-                ProjDyn::Vector3 normal = (pos.row(tris(t, 2)) - pos.row(tris(t, 1))).cross((pos.row(tris(t, 0)) - pos.row(tris(t, 1)))).normalized();
-                for (int vloc = 0; vloc < 3; vloc++) {
-                    int vind = tris(t, vloc);
-                    float fac = 1.f / m_vertexStars[vind].size();
-                    m_uploadNormals(0, vind) += normal(0) * fac;
-                    m_uploadNormals(1, vind) += normal(1) * fac;
-                    m_uploadNormals(2, vind) += normal(2) * fac;
+            for (int vInd = 0; vInd < m_simulator.getNumOuterVerts(); vInd++) {
+                float fac = 1.f / m_vertexStars[vInd].size();
+                ProjDyn::Vector3 normal;
+                normal.setZero();
+                for (int locInd = 0; locInd < m_vertexStars[vInd].size(); locInd++) {
+                    int t = m_vertexStars[vInd][locInd].t1;
+                    normal += fac * (pos.row(tris(t, 2)) - pos.row(tris(t, 1))).cross((pos.row(tris(t, 0)) - pos.row(tris(t, 1)))).normalized();
                 }
+                m_uploadNormals(0, vInd) = normal(0);
+                m_uploadNormals(1, vInd) = normal(1);
+                m_uploadNormals(2, vInd) = normal(2);
             }
 
             //Upload the normals
-            m_viewer->updateShaderNormals(m_uploadNormals);
+            m_viewer->updateShaderNormals(m_uploadNormals, forcedUpload);
         }
 
         return true;
@@ -412,7 +458,7 @@ public:
         for (Index i = 0; i < tets.rows(); i++) allTets.push_back(i);
         addTetStrainConstraints(allTets, weight);
     }
-    
+
     // Add tetrahedral strain constraints to some tets:
     void addTetStrainConstraints(const std::vector<Index>& tetInds, ProjDyn::Scalar weight = 1.) {
         std::vector<ProjDyn::ConstraintPtr> tet_constraints;
@@ -571,6 +617,9 @@ private:
     std::vector<ProjDyn::VertexStar> m_vertexStars;
     Window* m_constraint_window = nullptr;
     Viewer* m_viewer;
+    Button* m_startButton = nullptr;
+    Button* m_stopButton = nullptr;
+    bool m_updateNormals = UPDATE_NORMALS;
 
     void addEdgeSpringConstraintsTets(ProjDyn::Scalar weight = 1.) {
         const ProjDyn::Positions& sim_verts = m_simulator.getInitialPositions();

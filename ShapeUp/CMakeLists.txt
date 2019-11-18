@@ -43,4 +43,5 @@ add_custom_target(projdyn_sources SOURCES ${PDSOURCE} ${VIEWERSOURCE} ${PDASOURC
 add_subdirectory(projdyn)
 add_subdirectory(viewer)
 add_subdirectory(projdyn_api)
+add_subdirectory(simulation)
 add_subdirectory(shapeup)
