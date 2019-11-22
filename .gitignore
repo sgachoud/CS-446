@@ -1,5 +1,8 @@
 */build*
 */data*
+*.vs
+ShapeUp/CMakeSettings.json
+*/out/*
 # Prerequisites
 *.d
 
