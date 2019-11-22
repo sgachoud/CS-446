@@ -667,9 +667,12 @@ namespace ProjDyn {
     public:
         IsometricOneRing(const std::vector<Index>& ring_vertices, Scalar weight,
             const Positions& positions)
-            :
+            : m_rest_edges(ring_vertices.size()),
             Constraint(ring_vertices, weight)
         {
+			for (Index index : ring_vertices) {
+
+			}
             // Initialize 1-Ring constraint
             // [Add code here!]
         }
@@ -682,7 +685,7 @@ namespace ProjDyn {
         }
 
         virtual Index getNumConstraintRows() override { 
-            return 0; // [Return correct value here!]; 
+            return m_rest_edges.size(); 
         };
 
         virtual ConstraintPtr copy() {
@@ -690,6 +693,7 @@ namespace ProjDyn {
         }
     protected:
         // [Add member variables that you need for this constraint here]
+		std::vector<Vector3> m_rest_edges;
 
         virtual std::vector<Triplet> getTriplets(Index currentRow) override {
             std::vector<Triplet> triplets;
