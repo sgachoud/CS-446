@@ -714,10 +714,15 @@ namespace ProjDyn {
         // [Add member variables that you need for this constraint here]
 		MatrixT<Eigen::Dynamic, 3> m_rest_edges;
 
+
         virtual std::vector<Triplet> getTriplets(Index currentRow) override {
             std::vector<Triplet> triplets;
             // Compute the k edges of the current 1-Ring
             // [Add code here!]
+			triplets.push_back(Triplet(currentRow, m_vertex_indices[0], -1));
+			for (Index i(1); i < m_vertex_indices.size(); i++) {
+				triplets.push_back(Triplet(currentRow, m_vertex_indices[i], 1));
+			}
             return triplets;
         }
     };
