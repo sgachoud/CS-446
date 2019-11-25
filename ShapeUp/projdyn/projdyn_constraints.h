@@ -667,14 +667,14 @@ namespace ProjDyn {
     public:
         IsometricOneRing(const std::vector<Index>& ring_vertices, Scalar weight,
             const Positions& positions)
-            : m_rest_edges(ring_vertices.size()),
+            : m_rest_edges(ring_vertices.size()-1, 3),
             Constraint(ring_vertices, weight)
         {
-			for (Index index : ring_vertices) {
-
+			Vector3 c(positions.row(ring_vertices[0]));
+			for (Index i(1); i < ring_vertices.size(); i++) {
+				 
+				m_rest_edges.row(i - 1) = Vector3(positions.row(ring_vertices[0])) - c;
 			}
-            // Initialize 1-Ring constraint
-            // [Add code here!]
         }
 
         virtual void project(const Positions& positions, Positions& projection) override {
@@ -682,10 +682,29 @@ namespace ProjDyn {
             // Fill these edges into the projection matrix, starting from the row
             // given by m_constraint_id
             // [Add code here!]
+			
+			MatrixT<3, 3> E;
+			E << 0, 0, 0, 
+				 0, 0, 0, 
+				 0, 0, 0;
+			Vector3 c(positions.row(0));
+			for (Index i(1); i < positions.cols(); i++) {
+				Vector3 e(Vector3(positions.row(i))-c);
+				E += Vector3(m_rest_edges.row(i)) * e.transpose();
+			}
+			Eigen::JacobiSVD<Eigen::Matrix<Scalar, 3, 3>> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
+			Eigen::Matrix<Scalar, 3, 3> U = svd.matrixU();
+			Eigen::Matrix<Scalar, 3, 3> V = svd.matrixV();
+			Scalar smallestSingularValue = svd.singularValues().coeff(0);
+
+			if (smallestSingularValue < 0) {
+				U.col(0) *= -1;
+			}
+			projection = (V * U.transpose() * m_rest_edges.transpose()).transpose();
         }
 
         virtual Index getNumConstraintRows() override { 
-            return m_rest_edges.size(); 
+            return m_rest_edges.rows(); 
         };
 
         virtual ConstraintPtr copy() {
@@ -693,7 +712,7 @@ namespace ProjDyn {
         }
     protected:
         // [Add member variables that you need for this constraint here]
-		std::vector<Vector3> m_rest_edges;
+		MatrixT<Eigen::Dynamic, 3> m_rest_edges;
 
         virtual std::vector<Triplet> getTriplets(Index currentRow) override {
             std::vector<Triplet> triplets;
