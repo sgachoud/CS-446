@@ -1,4 +1,12 @@
 # Project proposals
+ 
+# <Title>
+Simon Wicky, Ludo Hoffstetter, Sébastien Gachoud
+
+## Summary
+
+
+## Goals
 
 ### Plastic deformations  
 * Compute per edges tensions (length difference)
