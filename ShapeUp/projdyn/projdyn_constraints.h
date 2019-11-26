@@ -55,7 +55,7 @@ namespace ProjDyn {
                 positions - current positions of the mesh vertices
                 projections - a matrix that will be filled by the output of the constraint projection
                             - NOTE: this matrix contains all constraints, and this projection should
-                              fill the rows starting from m_constraint_id
+                              fill the rows starting from m_rest_edges
         */
         virtual void project(const Positions& positions, Positions& projections) = 0;
 
@@ -100,7 +100,7 @@ namespace ProjDyn {
         /** Returns the weight of the constraint */
         Scalar getWeight() const { return m_weight * m_weight_mult; }
 
-        /** Change the weight of this constraint. 
+        /** Change the weight of this constraint.
             NOTE: this change will only affect the simulation once initializeSystem() is called again. */
         void setWeight(Scalar weight) { m_weight = weight; }
 
@@ -134,9 +134,9 @@ namespace ProjDyn {
         Index m_constraint_id = 0;
     };
 
-    
 
-    /**	
+
+    /**
     As an example for a constraint, the following constraint implements a spring force for an edge of the mesh:
     We have to implement the following methods:
     - the constructor, which initializes the rest data required for this constraint
@@ -289,7 +289,7 @@ namespace ProjDyn {
         Scalar m_force_factor;
     };
 
-    
+
     /**
         Tet-strain constraints
     */
@@ -480,7 +480,7 @@ namespace ProjDyn {
     class BendingConstraint : public Constraint {
     public:
         BendingConstraint(VertexStar vertexStar, Scalar weight, Scalar voronoiArea,
-            const Positions& positions, const Triangles& triangles) 
+            const Positions& positions, const Triangles& triangles)
             :
             Constraint(getStarIndices(vertexStar), weight)
         {
@@ -667,64 +667,67 @@ namespace ProjDyn {
     public:
         IsometricOneRing(const std::vector<Index>& ring_vertices, Scalar weight,
             const Positions& positions)
-            : m_rest_edges(ring_vertices.size()-1, 3),
+            :
+            m_rest_edges(ring_vertices.size() - 1),
             Constraint(ring_vertices, weight)
         {
-			Vector3 c(positions.row(ring_vertices[0]));
-			for (Index i(1); i < ring_vertices.size(); i++) {
-				 
-				m_rest_edges.row(i - 1) = Vector3(positions.row(ring_vertices[0])) - c;
-			}
+          Vector3 center(positions.row(m_vertex_indices[0]));
+
+          for (Index index(0); index < m_rest_edges.size(); index++) {
+            m_rest_edges[index] = Vector3(positions.row(m_vertex_indices[index + 1])) - center;
+          }
         }
 
         virtual void project(const Positions& positions, Positions& projection) override {
             // Compute best fit of original one ring edges to current one ring edges
             // Fill these edges into the projection matrix, starting from the row
             // given by m_constraint_id
-            // [Add code here!]
-			
-			MatrixT<3, 3> E;
-			E << 0, 0, 0, 
-				 0, 0, 0, 
-				 0, 0, 0;
-			Vector3 c(positions.row(0));
-			for (Index i(1); i < positions.cols(); i++) {
-				Vector3 e(Vector3(positions.row(i))-c);
-				E += Vector3(m_rest_edges.row(i)) * e.transpose();
-			}
-			Eigen::JacobiSVD<Eigen::Matrix<Scalar, 3, 3>> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
-			Eigen::Matrix<Scalar, 3, 3> U = svd.matrixU();
-			Eigen::Matrix<Scalar, 3, 3> V = svd.matrixV();
-			Scalar smallestSingularValue = svd.singularValues().coeff(0);
+            Vector3 center(positions.row(m_vertex_indices[0]));
+            MatrixT<3, 3> E;
+			      E << 0, 0, 0,
+				         0, 0, 0,
+				         0, 0, 0;
 
-			if (smallestSingularValue < 0) {
-				U.col(0) *= -1;
-			}
-			projection = (V * U.transpose() * m_rest_edges.transpose()).transpose();
+            for (Index index(0); index < m_rest_edges.size(); index++) {
+              Vector3 edge(Vector3(positions.row(m_vertex_indices[index + 1])) - center);
+              E += m_rest_edges[index] * edge.transpose();
+            }
+
+            Eigen::JacobiSVD<Eigen::Matrix<Scalar, 3, 3>> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
+            Eigen::Matrix<Scalar, 3, 3> U = svd.matrixU();
+            Eigen::Matrix<Scalar, 3, 3> V = svd.matrixV();
+
+            if (svd.singularValues().coeff(0) < 0) {
+              U.col(0) *= -1;
+            }
+
+            projection.row(m_constraint_id) = center;
+            for (Index index(0); index < m_rest_edges.size(); index++) {
+              projection.row(m_constraint_id + index + 1) = V * U.transpose() * m_rest_edges[index] + center;
+            }
         }
 
-        virtual Index getNumConstraintRows() override { 
-            return m_rest_edges.rows(); 
+        virtual Index getNumConstraintRows() override {
+            return m_rest_edges.size();
         };
 
         virtual ConstraintPtr copy() {
             return std::make_shared<IsometricOneRing>(*this);
         }
     protected:
-        // [Add member variables that you need for this constraint here]
-		MatrixT<Eigen::Dynamic, 3> m_rest_edges;
-
+        std::vector<Vector3> m_rest_edges;
 
         virtual std::vector<Triplet> getTriplets(Index currentRow) override {
             std::vector<Triplet> triplets;
             // Compute the k edges of the current 1-Ring
             // [Add code here!]
-			triplets.push_back(Triplet(currentRow, m_vertex_indices[0], -1));
-			for (Index i(1); i < m_vertex_indices.size(); i++) {
-				triplets.push_back(Triplet(currentRow, m_vertex_indices[i], 1));
-			}
+            for (Index index(1); index < m_vertex_indices.size(); index++) {
+                triplets.push_back(Triplet(currentRow + index - 1, m_vertex_indices[0], -1));
+                triplets.push_back(Triplet(currentRow + index - 1, m_vertex_indices[index], 1));
+            }
+
             return triplets;
         }
     };
-    
+
 }
