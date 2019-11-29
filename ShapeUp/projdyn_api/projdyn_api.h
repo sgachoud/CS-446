@@ -106,6 +106,28 @@ public:
             popupBtn->setPushed(false);
         });
 
+        b = new Button(popup, "X Walls");
+        b->setCallback([this, popupBtn]() {
+            bool was_active = m_simActive;
+            stop();
+            addXWallsConstraints(10., 5., 3.);
+            if (was_active) {
+                start();
+            }
+            popupBtn->setPushed(false);
+        });
+
+        b = new Button(popup, "Z Walls");
+        b->setCallback([this, popupBtn]() {
+            bool was_active = m_simActive;
+            stop();
+            addZWallsConstraints(10., 5., 3.);
+            if (was_active) {
+                start();
+            }
+            popupBtn->setPushed(false);
+        });
+
         b = new Button(popup, "Edge Springs");
         b->setCallback([this, popupBtn]() {
             bool was_active = m_simActive;
@@ -202,8 +224,7 @@ public:
             ConstraintSlider* slider = new ConstraintSlider(panel, m_viewer, m_simulator.getNumVerts(), g);
 
             // Re-initialize system and update positions once the user lets go of the slider
-            slider->setFinalCallback([this, slider](float v) {
-                slider->setValue(v);
+            slider->setFinalCallback([this](float v) {
                 bool wasRunning = m_simActive;
                 stop();
                 m_simulator.initializeSystem();
@@ -278,6 +299,8 @@ public:
 
         updateConstraintsGUI();
         m_viewer->showFloor(false);
+
+        uploadPositions(true);
 
         return true;
     }
@@ -418,7 +441,7 @@ public:
     }
 
     // Add constraints to the simulator, either as groups, as lists
-    // or as single constraints 
+    // or as single constraints
     void addConstraints(const std::vector<ProjDyn::ConstraintPtr>& constraints) {
         m_simulator.addConstraints(constraints);
         updateConstraintsGUI();
@@ -450,6 +473,27 @@ public:
     // In the following are several helper function to add several types of specific
     // constraints to the simulation:
 
+    // Add X walls contraints to all points:
+    void addXWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
+			ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_simulator.getInitialPositions(), m_simulator.getTriangles());
+            std::vector<ProjDyn::ConstraintPtr> wallCons;
+			for (Index v = 0; v < m_simulator.getNumVerts(); v++) {
+				wallCons.push_back(std::make_shared<ProjDyn::XWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
+			}
+            addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("X Walls", wallCons, 1));
+			//m_system_init = false;
+		}
+
+    // Add Z walls contraints to all points:
+    void addZWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
+			ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_simulator.getInitialPositions(), m_simulator.getTriangles());
+            std::vector<ProjDyn::ConstraintPtr> wallCons;
+			for (Index v = 0; v < m_simulator.getNumVerts(); v++) {
+				wallCons.push_back(std::make_shared<ProjDyn::ZWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
+			}
+            addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("Z Walls", wallCons, 1));
+			//m_system_init = false;
+		}
 
     // Add tetrahedral strain constraints to all tets:
     void addTetStrainConstraints(ProjDyn::Scalar weight = 1.) {

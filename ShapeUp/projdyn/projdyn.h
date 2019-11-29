@@ -107,7 +107,7 @@ namespace ProjDyn {
             SparseMatrix temp2 = temp1.transpose();
             m_laplacian = temp2 * temp1;
 
-            // Also construct the matrix Sum_i w_i S_i^T A_i^T 
+            // Also construct the matrix Sum_i w_i S_i^T A_i^T
             // which appears on the right hand side of the global step
             m_constraint_mat_t.resize(m_num_verts, row_ind);
             m_constraint_mat_t.setFromTriplets(con_triplets_t.begin(), con_triplets_t.end());
@@ -154,7 +154,7 @@ namespace ProjDyn {
                 m_momentum = m_positions;
             }
 
-            // If vertices are being grabbed by the mouse, we enforce this here 
+            // If vertices are being grabbed by the mouse, we enforce this here
             // (this is only used in the simulation, for ShapeUp, proper position
             // constraint groups are used!)
             if (m_hasGrab && m_grabVerts.size() == m_grabPos.size()) {
@@ -228,33 +228,33 @@ namespace ProjDyn {
 			m_velocities.setZero(m_positions.rows(), 3);
 		}
 
-		const Triangles& getTriangles() const {
+		const Triangles& getTriangles() {
 			return m_triangles;
 		}
 
-		const Tetrahedrons& getTetrahedrons() const {
+		const Tetrahedrons& getTetrahedrons() {
 			return m_tetrahedrons;
 		}
 
 		// Positions of the deformed mesh
-		const Positions& getPositions() const {
+		const Positions& getPositions() {
 			return m_positions;
 		}
 
 		// Positions of the rest-state mesh
-		const Positions& getInitialPositions() const {
+		const Positions& getInitialPositions() {
 			return m_initial_positions;
 		}
 
 		// Returns the number of outer vertices.
 		// Note that the vertices with index 0, ..., numOuterVerts-1 are the vertices on
 		// the surface triangles of the mesh, while the rest are inner vertices.
-		Index getNumOuterVerts() const {
+		Index getNumOuterVerts() {
 			return m_num_outer_verts;
 		}
 
 		// Returns the total number of vertices (inner and outer vertices)
-		Index getNumVerts() const {
+		Index getNumVerts() {
 			return m_num_verts;
 		}
 
@@ -303,7 +303,7 @@ namespace ProjDyn {
 		// Only if this returns true will the step() method perform a simulation
 		// taking into account the current mesh and constraints.
 		// Otherwise, initializeSystem() needs to be called first.
-		bool isInitialized() const {
+		bool isInitialized() {
 			return (m_system_init && m_lhs_updated);
 		}
 
@@ -313,7 +313,7 @@ namespace ProjDyn {
             m_gravity = g;
 		}
 
-        // Switches between dynamic (i.e. simulation) mode and static mode (i.e. 
+        // Switches between dynamic (i.e. simulation) mode and static mode (i.e.
         // constraint based shape optimization)
         void setDynamic(bool dynamic) {
             m_dynamicMode = dynamic;
@@ -365,7 +365,6 @@ namespace ProjDyn {
 		}
 
 		void addFloorConstraints(Scalar weightMultiplier, Scalar forceFactor = 1.) {
-            if (m_num_verts <= 0) return;
 			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
             std::vector<ConstraintPtr> floorCons;
 			for (Index v = 0; v < m_num_verts; v++) {
@@ -375,9 +374,11 @@ namespace ProjDyn {
 			m_system_init = false;
 		}
 
-        Scalar getFloorHeight() const {
+        Scalar getFloorHeight() {
             return m_floorHeight;
         }
+
+
 
 	protected:
 		// Mesh faces, vertices and tetrahedrons
