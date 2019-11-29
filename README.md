@@ -1,5 +1,5 @@
 # Project proposals
- 
+
 # Plasticity and Explosions
 Simon Wicky, Ludo Hoffstetter, Sébastien Gachoud
 
@@ -17,7 +17,7 @@ If an object is too strongly stretched or bent, its rest shape will change. We w
 
 ### Technical approach
 To implement plasticity, we will need to:
- 
+
 * Compute per edges tensions (length difference)  
   We need a way to tell whether an edge has been stretched too much
 * Compute per vertices bending (curvature difference)  
@@ -36,5 +36,3 @@ The friction can be implemented using a constraint that force vertices near the 
 ## Punctual Explosion
 
 As stated in the summary, we would like to add point explosion. We would be able to trigger an explosion at a given coordinates with a given force. It would then create a shockwave traversing the mesh, which will react accordingly. If we fix the mesh somewhere, it could for example wiggle around and deform itself if the explosion was too strong.
-
-
