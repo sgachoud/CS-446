@@ -311,7 +311,7 @@ namespace ProjDyn {
             if (positions(m_vert_ind, 0) > m_wall_distance) {
                 projection(m_constraint_id, 0) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 0);
             } else if (positions(m_vert_ind, 0) < -m_wall_distance) {
-                projection(m_constraint_id, 0) = (1 + m_force_factor) * m_wall_distance + m_force_factor * positions(m_vert_ind, 0);
+                projection(m_constraint_id, 0) = -(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 0);
             }
         }
 
@@ -356,7 +356,7 @@ namespace ProjDyn {
             if (positions(m_vert_ind, 2) > m_wall_distance) {
                 projection(m_constraint_id, 2) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
             } else if (positions(m_vert_ind, 2) < -m_wall_distance) {
-                projection(m_constraint_id, 2) = (1 + m_force_factor) * m_wall_distance + m_force_factor * positions(m_vert_ind, 2);
+                projection(m_constraint_id, 2) = -(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
             }
         }
 
