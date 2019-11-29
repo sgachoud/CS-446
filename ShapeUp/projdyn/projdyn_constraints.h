@@ -55,7 +55,7 @@ namespace ProjDyn {
                 positions - current positions of the mesh vertices
                 projections - a matrix that will be filled by the output of the constraint projection
                             - NOTE: this matrix contains all constraints, and this projection should
-                              fill the rows starting from m_rest_edges
+                              fill the rows starting from m_constraint_id
         */
         virtual void project(const Positions& positions, Positions& projections) = 0;
 
@@ -285,6 +285,96 @@ namespace ProjDyn {
 
     private:
         Scalar m_floor_height;
+        Index m_vert_ind;
+        Scalar m_force_factor;
+    };
+
+    /**
+        Constraint that keeps the x position of a vertex between wallDistance and -wallDistance
+    */
+    class XWallsConstraint : public Constraint {
+    public:
+        XWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
+            :
+            Constraint({ ind }, weight),
+            m_wall_distance(wallDistance),
+            m_vert_ind(ind),
+            m_force_factor(forceFactor)
+        {
+        }
+
+        virtual void project(const Positions& positions, Positions& projection) override {
+            // Check for correct size of the projection auxiliary variable;
+            assert(projection.rows() > m_constraint_id);
+            // Set corrected positions for vertices that are below the floor height
+            projection.row(m_constraint_id) = positions.row(m_vert_ind);
+            if (positions(m_vert_ind, 0) > m_wall_distance) {
+                projection(m_constraint_id, 0) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 0);
+            } else if (positions(m_vert_ind, 0) < -m_wall_distance) {
+                projection(m_constraint_id, 0) = (1 + m_force_factor) * m_wall_distance + m_force_factor * positions(m_vert_ind, 0);
+            }
+        }
+
+        virtual Index getNumConstraintRows() override { return 1; }
+
+        virtual ConstraintPtr copy() {
+            return std::make_shared<XWallsConstraint>(*this);
+        }
+
+    protected:
+        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
+            std::vector<Triplet> triplets;
+            triplets.push_back(Triplet(currentRow, m_vert_ind, 1.));
+            return triplets;
+        }
+
+    private:
+        Scalar m_wall_distance;
+        Index m_vert_ind;
+        Scalar m_force_factor;
+    };
+
+    /**
+        Constraint that keeps the z position of a vertex between wallDistance and -wallDistance
+    */
+    class ZWallsConstraint : public Constraint {
+    public:
+        ZWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
+            :
+            Constraint({ ind }, weight),
+            m_wall_distance(wallDistance),
+            m_vert_ind(ind),
+            m_force_factor(forceFactor)
+        {
+        }
+
+        virtual void project(const Positions& positions, Positions& projection) override {
+            // Check for correct size of the projection auxiliary variable;
+            assert(projection.rows() > m_constraint_id);
+            // Set corrected positions for vertices that are below the floor height
+            projection.row(m_constraint_id) = positions.row(m_vert_ind);
+            if (positions(m_vert_ind, 2) > m_wall_distance) {
+                projection(m_constraint_id, 2) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
+            } else if (positions(m_vert_ind, 2) < -m_wall_distance) {
+                projection(m_constraint_id, 2) = (1 + m_force_factor) * m_wall_distance + m_force_factor * positions(m_vert_ind, 2);
+            }
+        }
+
+        virtual Index getNumConstraintRows() override { return 1; }
+
+        virtual ConstraintPtr copy() {
+            return std::make_shared<ZWallsConstraint>(*this);
+        }
+
+    protected:
+        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
+            std::vector<Triplet> triplets;
+            triplets.push_back(Triplet(currentRow, m_vert_ind, 1.));
+            return triplets;
+        }
+
+    private:
+        Scalar m_wall_distance;
         Index m_vert_ind;
         Scalar m_force_factor;
     };
@@ -689,7 +779,7 @@ namespace ProjDyn {
 				         0, 0, 0;
 
             for (Index index(0); index < m_rest_edges.size(); index++) {
-              Vector3 edge(Vector3(positions.row(m_vertex_indices[index + 1])) - center);
+              Vector3 edge = Vector3(positions.row(m_vertex_indices[index + 1])) - center;
               E += m_rest_edges[index] * edge.transpose();
             }
 
@@ -701,9 +791,9 @@ namespace ProjDyn {
               U.col(0) *= -1;
             }
 
-            projection.row(m_constraint_id) = center;
+            projection.row(m_constraint_id) = center.transpose();
             for (Index index(0); index < m_rest_edges.size(); index++) {
-              projection.row(m_constraint_id + index + 1) = V * U.transpose() * m_rest_edges[index] + center;
+              projection.row(m_constraint_id + index + 1) = (V * U.transpose() * m_rest_edges[index] + center).transpose();
             }
         }
 
