@@ -276,6 +276,10 @@ namespace ProjDyn {
             return std::make_shared<FloorConstraint>(*this);
         }
 
+		virtual bool isColliding(Vector3 point) const{
+			return point(1) < m_floor_height;
+		}
+
     protected:
         virtual std::vector<Triplet> getTriplets(Index currentRow) override {
             std::vector<Triplet> triplets;
@@ -379,6 +383,50 @@ namespace ProjDyn {
         Scalar m_force_factor;
     };
 
+	/**
+		Constraint that keeps the z position of a vertex between wallDistance and -wallDistance
+	*/
+	/*class FrictionConstraint : public Constraint {
+	public:
+		FrictionConstraint(Index ind, Scalar weight, const Positions& positions, FloorConstraint const* floorConstraint = nullptr, Scalar forceFactor = 1.)
+			:
+			Constraint({ ind }, weight),
+			m_floor_constraint(floorConstraint),
+			m_vert_ind(ind),
+			m_prev_pos(positions.row(ind)),
+			m_force_factor(forceFactor)
+		{
+		}
+
+		virtual void project(const Positions& positions, Positions& projection) override {
+			// Check for correct size of the projection auxiliary variable;
+			assert(projection.rows() > m_constraint_id);
+			// Set corrected positions for vertices that are below the floor height
+			projection.row(m_constraint_id) = m_prev_pos;
+			if (m_floor_constraint->isColliding(positions.row(m_vert_ind))) {
+				projection(m_constraint_id, 2) = positions.row(m_vert_ind)(2);
+			}
+		}
+
+		virtual Index getNumConstraintRows() override { return 1; }
+
+		virtual ConstraintPtr copy() {
+			return std::make_shared<ZWallsConstraint>(*this);
+		}
+
+	protected:
+		virtual std::vector<Triplet> getTriplets(Index currentRow) override {
+			std::vector<Triplet> triplets;
+			triplets.push_back(Triplet(currentRow, m_vert_ind, 1.));
+			return triplets;
+		}
+
+	private:
+		FloorConstraint const* m_floor_constraint;
+		Vector3 m_prev_pos;
+		Index m_vert_ind;
+		Scalar m_force_factor;
+	};*/
 
     /**
         Tet-strain constraints
@@ -758,8 +806,8 @@ namespace ProjDyn {
         IsometricOneRing(const std::vector<Index>& ring_vertices, Scalar weight,
             const Positions& positions)
             :
-            m_rest_edges(ring_vertices.size() - 1),
-            Constraint(ring_vertices, weight)
+            Constraint(ring_vertices, weight),
+			m_rest_edges(ring_vertices.size() - 1)
         {
           Vector3 center(positions.row(m_vertex_indices[0]));
 
