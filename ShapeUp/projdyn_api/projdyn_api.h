@@ -475,25 +475,25 @@ public:
 
     // Add X walls contraints to all points:
     void addXWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
-			ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_simulator.getInitialPositions(), m_simulator.getTriangles());
-            std::vector<ProjDyn::ConstraintPtr> wallCons;
-			for (Index v = 0; v < m_simulator.getNumVerts(); v++) {
-				wallCons.push_back(std::make_shared<ProjDyn::XWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
-			}
-            addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("X Walls", wallCons, 1));
-			//m_system_init = false;
+		ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_simulator.getInitialPositions(), m_simulator.getTriangles());
+        std::vector<ProjDyn::ConstraintPtr> wallCons;
+		for (Index v = 0; v < m_simulator.getNumVerts(); v++) {
+			wallCons.push_back(std::make_shared<ProjDyn::XWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
 		}
+        addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("X Walls", wallCons, 1));
+		//m_system_init = false;
+	}
 
     // Add Z walls contraints to all points:
     void addZWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
-			ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_simulator.getInitialPositions(), m_simulator.getTriangles());
-            std::vector<ProjDyn::ConstraintPtr> wallCons;
-			for (Index v = 0; v < m_simulator.getNumVerts(); v++) {
-				wallCons.push_back(std::make_shared<ProjDyn::ZWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
-			}
-            addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("Z Walls", wallCons, 1));
-			//m_system_init = false;
+		ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_simulator.getInitialPositions(), m_simulator.getTriangles());
+        std::vector<ProjDyn::ConstraintPtr> wallCons;
+		for (Index v = 0; v < m_simulator.getNumVerts(); v++) {
+			wallCons.push_back(std::make_shared<ProjDyn::ZWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
 		}
+        addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("Z Walls", wallCons, 1));
+		//m_system_init = false;
+	}
 
     // Add tetrahedral strain constraints to all tets:
     void addTetStrainConstraints(ProjDyn::Scalar weight = 1.) {

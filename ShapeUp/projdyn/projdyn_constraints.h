@@ -59,6 +59,7 @@ namespace ProjDyn {
         */
         virtual void project(const Positions& positions, Positions& projections) = 0;
 
+		virtual void update(){}
         /** Add the constraint to the matrix A that maps vertex positions to the linear part of the constraint projection.
             Specifically, adds a row w_i S_i A_i to the matrix (as triplets), where the notation of the paper is used.
                 triplets - A list of all triplets (row, col, entry) that is being built to construct the full matrix A
@@ -277,7 +278,7 @@ namespace ProjDyn {
         }
 
 		virtual bool isColliding(Vector3 point) const{
-			return point(1) < m_floor_height;
+			return point(1) <= m_floor_height;
 		}
 
     protected:
@@ -384,17 +385,17 @@ namespace ProjDyn {
     };
 
 	/**
-		Constraint that keeps the z position of a vertex between wallDistance and -wallDistance
+		Constraint that simulates friction on the floor
 	*/
-	/*class FrictionConstraint : public Constraint {
+	class FrictionConstraint : public Constraint {
 	public:
-		FrictionConstraint(Index ind, Scalar weight, const Positions& positions, FloorConstraint const* floorConstraint = nullptr, Scalar forceFactor = 1.)
+		FrictionConstraint(Index ind, Scalar weight, const Positions& positions, std::shared_ptr<FloorConstraint> floorConstraint = nullptr)
 			:
 			Constraint({ ind }, weight),
 			m_floor_constraint(floorConstraint),
 			m_vert_ind(ind),
 			m_prev_pos(positions.row(ind)),
-			m_force_factor(forceFactor)
+			m_positions(positions)
 		{
 		}
 
@@ -402,16 +403,20 @@ namespace ProjDyn {
 			// Check for correct size of the projection auxiliary variable;
 			assert(projection.rows() > m_constraint_id);
 			// Set corrected positions for vertices that are below the floor height
-			projection.row(m_constraint_id) = m_prev_pos;
+			projection.row(m_constraint_id) = positions.row(m_vert_ind);
 			if (m_floor_constraint->isColliding(positions.row(m_vert_ind))) {
-				projection(m_constraint_id, 2) = positions.row(m_vert_ind)(2);
+				projection(m_constraint_id, 0) = m_prev_pos(0);
+				projection(m_constraint_id, 2) = m_prev_pos(2);
 			}
+		}
+		virtual void update() override {
+			m_prev_pos = m_positions.row(m_vert_ind);
 		}
 
 		virtual Index getNumConstraintRows() override { return 1; }
 
 		virtual ConstraintPtr copy() {
-			return std::make_shared<ZWallsConstraint>(*this);
+			return std::make_shared<FrictionConstraint>(*this);
 		}
 
 	protected:
@@ -422,11 +427,11 @@ namespace ProjDyn {
 		}
 
 	private:
-		FloorConstraint const* m_floor_constraint;
+		std::shared_ptr<FloorConstraint> m_floor_constraint;
 		Vector3 m_prev_pos;
 		Index m_vert_ind;
-		Scalar m_force_factor;
-	};*/
+		Positions const& m_positions;
+	};
 
     /**
         Tet-strain constraints

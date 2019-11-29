@@ -191,6 +191,12 @@ namespace ProjDyn {
                 }
             }
 
+			//updates constraints
+#pragma omp parallel for
+			for (int j = 0; j < m_constraints.size(); j++) {
+				m_constraints[j]->update();
+			}
+
             if (m_dynamicMode) {
                 // Lastly, update the velocities as finite differences between the old and new positions
                 m_velocities = (1. / m_time_step) * (m_positions - m_old_positions);
@@ -367,10 +373,16 @@ namespace ProjDyn {
 		void addFloorConstraints(Scalar weightMultiplier, Scalar forceFactor = 1.) {
 			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
             std::vector<ConstraintPtr> floorCons;
+			std::vector<ConstraintPtr> frictionCons;//added for friction
 			for (Index v = 0; v < m_num_verts; v++) {
-				floorCons.push_back(std::make_shared<FloorConstraint>(v, voronoiAreas(v) * weightMultiplier, m_floorHeight, forceFactor));
+				std::shared_ptr<FloorConstraint> floorConstraint = 
+					std::make_shared<FloorConstraint>(v, voronoiAreas(v) * weightMultiplier, m_floorHeight, forceFactor);
+				floorCons.push_back(floorConstraint);
+				frictionCons.push_back(//added for friction
+					std::make_shared<FrictionConstraint>(v, voronoiAreas(v) * weightMultiplier, getPositions(), floorConstraint));
 			}
             addConstraints(std::make_shared<ConstraintGroup>("Floor", floorCons, 1));
+			addConstraints(std::make_shared<ConstraintGroup>("Floor Friction", frictionCons, 1));//added for friction
 			m_system_init = false;
 		}
 
