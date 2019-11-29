@@ -791,9 +791,8 @@ namespace ProjDyn {
               U.col(0) *= -1;
             }
 
-            projection.row(m_constraint_id) = center.transpose();
             for (Index index(0); index < m_rest_edges.size(); index++) {
-              projection.row(m_constraint_id + index + 1) = (V * U.transpose() * m_rest_edges[index] + center).transpose();
+              projection.row(m_constraint_id + index) = V * U.transpose() * m_rest_edges[index];
             }
         }
 
