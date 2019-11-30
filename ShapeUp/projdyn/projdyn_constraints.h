@@ -59,6 +59,8 @@ namespace ProjDyn {
         */
         virtual void project(const Positions& positions, Positions& projections) = 0;
 
+		/** Call after solving local-global algorithm such that the constraint can be updated
+		*/
 		virtual void update(){}
         /** Add the constraint to the matrix A that maps vertex positions to the linear part of the constraint projection.
             Specifically, adds a row w_i S_i A_i to the matrix (as triplets), where the notation of the paper is used.
@@ -247,17 +249,51 @@ namespace ProjDyn {
         Positions m_target_positions;
     };
 
+	/**
+		Pure virtual constraint to generalize axis aligned walls
+	*/
+	class WallConstraint : public Constraint {
+	public:
+		WallConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
+			:
+			Constraint({ ind }, weight),
+			m_wall_distance(wallDistance),
+			m_vert_ind(ind),
+			m_force_factor(forceFactor)
+		{
+		}
+
+		virtual Index getNumConstraintRows() override { return 1; }
+
+		/** Test for collision, i.e. if point is behind or toutching the wall
+		*/
+		virtual bool isColliding(Vector3 point) const = 0;
+
+		/** Store in i and j the directions of the friction (x:0,y:1,z:2)
+		*/
+		virtual void frictionAxes(Index& i, Index& j) const = 0;
+
+	protected:
+		virtual std::vector<Triplet> getTriplets(Index currentRow) override {
+			std::vector<Triplet> triplets;
+			triplets.push_back(Triplet(currentRow, m_vert_ind, 1.));
+			return triplets;
+		}
+
+	protected:
+		Scalar m_wall_distance;
+		Index m_vert_ind;
+		Scalar m_force_factor;
+	};
+
     /**
         Constraint that keeps the y position of a vertex above a certain coordinate
     */
-    class FloorConstraint : public Constraint {
+    class FloorConstraint : public WallConstraint {
     public:
         FloorConstraint(Index ind, Scalar weight, Scalar floorHeight, Scalar forceFactor = 1.)
             :
-            Constraint({ ind }, weight),
-            m_floor_height(floorHeight),
-            m_vert_ind(ind),
-            m_force_factor(forceFactor)
+			WallConstraint(ind, weight, floorHeight, forceFactor)
         {
         }
 
@@ -266,45 +302,32 @@ namespace ProjDyn {
             assert(projection.rows() > m_constraint_id);
             // Set corrected positions for vertices that are below the floor height
             projection.row(m_constraint_id) = positions.row(m_vert_ind);
-            if (positions(m_vert_ind, 1) < m_floor_height) {
-                projection(m_constraint_id, 1) = (1 + m_force_factor) * m_floor_height - m_force_factor * positions(m_vert_ind, 1);
+            if (positions(m_vert_ind, 1) < m_wall_distance) {
+                projection(m_constraint_id, 1) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 1);
             }
         }
-
-        virtual Index getNumConstraintRows() override { return 1; }
 
         virtual ConstraintPtr copy() {
             return std::make_shared<FloorConstraint>(*this);
         }
 
-		virtual bool isColliding(Vector3 point) const{
-			return point(1) <= m_floor_height;
+		virtual bool isColliding(Vector3 point) const override{
+			return point(1) <= m_wall_distance;
 		}
 
-    protected:
-        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
-            std::vector<Triplet> triplets;
-            triplets.push_back(Triplet(currentRow, m_vert_ind, 1.));
-            return triplets;
-        }
-
-    private:
-        Scalar m_floor_height;
-        Index m_vert_ind;
-        Scalar m_force_factor;
+		virtual void frictionAxes(Index& i, Index& j) const override {
+			i = 0; j = 2;
+		}
     };
 
     /**
         Constraint that keeps the x position of a vertex between wallDistance and -wallDistance
     */
-    class XWallsConstraint : public Constraint {
+    class XWallsConstraint : public WallConstraint {
     public:
         XWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
             :
-            Constraint({ ind }, weight),
-            m_wall_distance(wallDistance),
-            m_vert_ind(ind),
-            m_force_factor(forceFactor)
+			WallConstraint(ind, weight, wallDistance, forceFactor)
         {
         }
 
@@ -320,36 +343,27 @@ namespace ProjDyn {
             }
         }
 
-        virtual Index getNumConstraintRows() override { return 1; }
-
         virtual ConstraintPtr copy() {
             return std::make_shared<XWallsConstraint>(*this);
         }
 
-    protected:
-        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
-            std::vector<Triplet> triplets;
-            triplets.push_back(Triplet(currentRow, m_vert_ind, 1.));
-            return triplets;
-        }
+		virtual bool isColliding(Vector3 point) const override {
+			return point(0) >= m_wall_distance || point(0) <= -m_wall_distance;
+		}
 
-    private:
-        Scalar m_wall_distance;
-        Index m_vert_ind;
-        Scalar m_force_factor;
+		virtual void frictionAxes(Index& i, Index& j) const override {
+			i = 1; j = 2;
+		}
     };
 
     /**
         Constraint that keeps the z position of a vertex between wallDistance and -wallDistance
     */
-    class ZWallsConstraint : public Constraint {
+    class ZWallsConstraint : public WallConstraint {
     public:
         ZWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
             :
-            Constraint({ ind }, weight),
-            m_wall_distance(wallDistance),
-            m_vert_ind(ind),
-            m_force_factor(forceFactor)
+			WallConstraint(ind, weight, wallDistance, forceFactor)
         {
         }
 
@@ -364,24 +378,17 @@ namespace ProjDyn {
                 projection(m_constraint_id, 2) = -(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
             }
         }
-
-        virtual Index getNumConstraintRows() override { return 1; }
-
         virtual ConstraintPtr copy() {
             return std::make_shared<ZWallsConstraint>(*this);
         }
 
-    protected:
-        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
-            std::vector<Triplet> triplets;
-            triplets.push_back(Triplet(currentRow, m_vert_ind, 1.));
-            return triplets;
-        }
+		virtual bool isColliding(Vector3 point) const override {
+			return point(2) >= m_wall_distance || point(2) <= -m_wall_distance;
+		}
 
-    private:
-        Scalar m_wall_distance;
-        Index m_vert_ind;
-        Scalar m_force_factor;
+		virtual void frictionAxes(Index& i, Index& j) const override {
+			i = 0; j = 1;
+		}
     };
 
 	/**
@@ -389,10 +396,10 @@ namespace ProjDyn {
 	*/
 	class FrictionConstraint : public Constraint {
 	public:
-		FrictionConstraint(Index ind, Scalar weight, const Positions& positions, std::shared_ptr<FloorConstraint> floorConstraint = nullptr)
+		FrictionConstraint(Index ind, Scalar weight, const Positions& positions, std::shared_ptr<WallConstraint> wallConstraint = nullptr)
 			:
 			Constraint({ ind }, weight),
-			m_floor_constraint(floorConstraint),
+			m_wall_constraint(wallConstraint),
 			m_vert_ind(ind),
 			m_prev_pos(positions.row(ind)),
 			m_positions(positions)
@@ -404,9 +411,11 @@ namespace ProjDyn {
 			assert(projection.rows() > m_constraint_id);
 			// Set corrected positions for vertices that are below the floor height
 			projection.row(m_constraint_id) = positions.row(m_vert_ind);
-			if (m_floor_constraint && m_floor_constraint->isColliding(positions.row(m_vert_ind))) {
-				projection(m_constraint_id, 0) = m_prev_pos(0);
-				projection(m_constraint_id, 2) = m_prev_pos(2);
+			if (m_wall_constraint && m_wall_constraint->isColliding(positions.row(m_vert_ind))) {
+				Index i(0), j(0);
+				m_wall_constraint->frictionAxes(i,j);
+				projection(m_constraint_id, i) = m_prev_pos(i);
+				projection(m_constraint_id, j) = m_prev_pos(j);
 			}
 		}
 		virtual void update() override {
@@ -427,7 +436,7 @@ namespace ProjDyn {
 		}
 
 	private:
-		std::shared_ptr<FloorConstraint> m_floor_constraint;
+		std::shared_ptr<WallConstraint> m_wall_constraint;
 		Vector3 m_prev_pos;
 		Index m_vert_ind;
 		Positions const& m_positions;
