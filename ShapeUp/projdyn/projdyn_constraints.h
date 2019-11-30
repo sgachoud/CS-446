@@ -404,7 +404,7 @@ namespace ProjDyn {
 			assert(projection.rows() > m_constraint_id);
 			// Set corrected positions for vertices that are below the floor height
 			projection.row(m_constraint_id) = positions.row(m_vert_ind);
-			if (m_floor_constraint->isColliding(positions.row(m_vert_ind))) {
+			if (m_floor_constraint && m_floor_constraint->isColliding(positions.row(m_vert_ind))) {
 				projection(m_constraint_id, 0) = m_prev_pos(0);
 				projection(m_constraint_id, 2) = m_prev_pos(2);
 			}
