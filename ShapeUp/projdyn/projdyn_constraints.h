@@ -265,7 +265,7 @@ namespace ProjDyn {
 
 		virtual Index getNumConstraintRows() override { return 1; }
 
-		/** Test for collision, i.e. if point is behind or toutching the wall
+		/** Test for collision, i.e. if point is behind or touching the wall
 		*/
 		virtual bool isColliding(Vector3 point) const = 0;
 
@@ -876,6 +876,51 @@ namespace ProjDyn {
                 triplets.push_back(Triplet(currentRow + index - 1, m_vertex_indices[0], -1));
                 triplets.push_back(Triplet(currentRow + index - 1, m_vertex_indices[index], 1));
             }
+
+            return triplets;
+        }
+    };
+
+    class PlasicityConstraint : public Constraint {
+    public:
+        PlasicityConstraint(const std::vector<Index>& edge_vertices, Scalar weight,
+            const Positions& positions)
+            :
+            Constraint(edge_vertices, weight)
+        {
+            // Make sure there are at most two vertices in the edge
+            assert(m_vertex_indices.size() == 2);
+            // Compute rest edge length
+            m_rest_length = (positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0])).norm();
+        }
+
+        virtual void project(const Positions& positions, Positions& projection) override {
+            // Check for correct size of the projection auxiliary variable;
+            assert(projection.rows() > m_constraint_id);
+            // Compute the current edge
+            projection.row(m_constraint_id) = positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0]);
+            //compute new rest_length
+            Scalar tmp_rest_length = projection.row(m_constraint_id).norm();
+            if (tmp_rest_length - m_rest_length > 0.025) {
+                m_rest_length += (tmp_rest_length - m_rest_length) / 3;
+            }
+            // Rescale to rest length
+            projection.row(m_constraint_id) /= projection.row(m_constraint_id).norm();
+            projection.row(m_constraint_id) *= m_rest_length;
+        }
+
+        virtual Index getNumConstraintRows() override { return 1; };
+
+        virtual ConstraintPtr copy() {
+            return std::make_shared<PlasicityConstraint>(*this);
+        }
+    protected:
+        Scalar m_rest_length = 0;
+
+        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
+            std::vector<Triplet> triplets;
+            triplets.push_back(Triplet(currentRow, m_vertex_indices[0], -1));
+            triplets.push_back(Triplet(currentRow, m_vertex_indices[1], 1));
 
             return triplets;
         }
