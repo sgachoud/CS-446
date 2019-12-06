@@ -117,6 +117,17 @@ public:
             popupBtn->setPushed(false);
         });
 
+		b = new Button(popup, "Y Walls");
+		b->setCallback([this, popupBtn]() {
+			bool was_active = m_simActive;
+			stop();
+			addYWallsConstraints(10., 5., 3.);
+			if (was_active) {
+				start();
+			}
+			popupBtn->setPushed(false);
+		});
+
         b = new Button(popup, "Z Walls");
         b->setCallback([this, popupBtn]() {
             bool was_active = m_simActive;
@@ -509,6 +520,17 @@ public:
 			wallCons.push_back(std::make_shared<ProjDyn::XWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
 		}
         addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("X Walls", wallCons, 1));
+		//m_system_init = false;
+	}
+
+	// Add Y walls contraints to all points:
+	void addYWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
+		ProjDyn::Vector voronoiAreas = ProjDyn::vertexMasses(m_simulator.getInitialPositions(), m_simulator.getTriangles());
+		std::vector<ProjDyn::ConstraintPtr> wallCons;
+		for (Index v = 0; v < m_simulator.getNumVerts(); v++) {
+			wallCons.push_back(std::make_shared<ProjDyn::YWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
+		}
+		addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("Y Walls", wallCons, 1));
 		//m_system_init = false;
 	}
 
