@@ -390,6 +390,16 @@ namespace ProjDyn {
             return m_floorHeight;
         }
 
+		Scalar getXWallsLimit() {
+            return m_xWallsLimit;
+        }
+		Scalar getYWallsLimit() {
+            return m_yWallsLimit;
+        }
+		Scalar getZWallsLimit() {
+            return m_zWallsLimit;
+        }
+
 
 
 	protected:
@@ -460,6 +470,11 @@ namespace ProjDyn {
 
 		// y-Coordinate of the floor plane, used for preliminary collisions
 		Scalar m_floorHeight = 0;
+
+		// Coordinates of the bounding box, used for preliminary collisions
+		Scalar m_xWallsLimit = 0;
+		Scalar m_yWallsLimit = 0;
+		Scalar m_zWallsLimit = 0;
 
         // Toggles "Dynamic mode", i.e. if set to true, this object is used to simulate
         // an object under external forces and momentum, if set to false, momentum and

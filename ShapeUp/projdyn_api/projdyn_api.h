@@ -106,22 +106,16 @@ public:
             popupBtn->setPushed(false);
         });
 
-        b = new Button(popup, "X Walls");
+        b = new Button(popup, "Box");
         b->setCallback([this, popupBtn]() {
             bool was_active = m_simActive;
             stop();
-            addXWallsConstraints(10., 5., 3.);
-            if (was_active) {
-                start();
-            }
-            popupBtn->setPushed(false);
-        });
-
-        b = new Button(popup, "Z Walls");
-        b->setCallback([this, popupBtn]() {
-            bool was_active = m_simActive;
-            stop();
-            addZWallsConstraints(10., 5., 3.);
+            m_simulator.addXWallsConstraints();
+            m_simulator.addYWallsConstraints();
+            m_simulator.addZWallsConstraints();
+            m_viewer->setBoxLimits(m_simulator.getXWallsLimit(), m_simulator.getYWallsLimit(), m_simulator.getZWallsLimit());
+            m_viewer->showBox(true);
+            updateConstraintsGUI();
             if (was_active) {
                 start();
             }

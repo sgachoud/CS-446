@@ -125,7 +125,7 @@ public:
             }
         }
 
-        std::cout << ", scale after: " << dist_after << std::endl; 
+        std::cout << ", scale after: " << dist_after << std::endl;
 
         mCamera.arcball = Arcball(2.);
         mCamera.arcball.setSize(mSize);
@@ -200,8 +200,19 @@ public:
         m_floorHeightChanged = true;
     }
 
+    void setBoxLimits(double xWallsLimit, double yWallsLimit, double zWallsLimit) {
+        m_xWallsLimit = xWallsLimit;
+        m_yWallsLimit = yWallsLimit;
+        m_zWallsLimit = zWallsLimit;
+        m_boxLimitsChanged = true;
+    }
+
     void showFloor(bool show) {
         m_showFloor = show;
+    }
+
+    void showBox(bool show) {
+        m_showBox = show;
     }
 
     void meshProcess() {
@@ -442,6 +453,7 @@ public:
             /* Fragment shader */
             "#version 330\n"
             "uniform vec3 intensity;\n"
+            "uniform float opacity;\n"
 
             "in vec3 fnormal;\n"
             "in vec3 view_dir;\n"
@@ -466,7 +478,50 @@ public:
             "    if (intensity == vec3(0.0)) {\n"
             "        c = intensity;\n"
             "    }\n"
-            "    color = vec4(c, 1.0);\n"
+            "    color = vec4(c, opacity);\n"
+            "}"
+        );
+
+        mBoxShader.init(
+            "box_shader",
+
+            /* Vertex shader */
+            "#version 330\n"
+            "uniform mat4 MV;\n"
+            "uniform mat4 P;\n"
+            "uniform vec2 x_walls;\n"
+            "uniform vec2 y_walls;\n"
+            "uniform vec2 z_walls;\n"
+
+            "in vec3 position;\n"
+
+            "out boolean is_edge;\n"
+
+            "boolean is_on_wall(int axis, vec2 walls) {\n"
+            "    if (position[axis] - walls[0] < 1e-1 || position[axis] - walls[1] < 1e-1) return true;\n"
+            "    return false;\n"
+            "}\n"
+
+            "void main() {\n"
+            "    gl_Position = P * MV * vec4(position, 1.0);\n"
+            "    boolean is_on_x_wall = is_on_wall(0, x_walls)\n"
+            "    boolean is_on_y_wall = is_on_wall(1, y_walls)\n"
+            "    boolean is_on_z_wall = is_on_wall(2, z_walls)\n"
+            "    if ((is_on_x_wall && is_on_y_wall) || (is_on_x_wall && is_on_z_wall) || (is_on_y_wall && is_on_z_wall)) is_edge = true;\n"
+            "    else is_edge = false;\n"
+            "}",
+
+            /* Fragment shader */
+            "#version 330\n"
+
+            "uniform vec3 greenColor;\n"
+
+            "in boolean is_edge;\n"
+
+            "out vec4 color;\n"
+
+            "void main() {\n"
+            "    color = vec4(is_edge ? greenColor : vec3(0), 1);\n"
             "}"
         );
 
@@ -567,7 +622,7 @@ public:
 
             "layout (triangles) in;\n"
             "layout (line_strip, max_vertices = 5) out;\n"
-            
+
             "void main() {\n"
             "   gl_Position = gl_in[0].gl_Position;\n"
             "   EmitVertex();\n"
@@ -697,11 +752,29 @@ public:
                 mFloorShader.uploadAttrib("position", m_floorPoints);
                 m_floorHeightChanged = false;
             }
-            Vector3f colors(0.98, 0.59, 0.04);
+            Vector3f colors(1, 1, 1);
             mFloorShader.setUniform("MV", mv);
             mFloorShader.setUniform("P", p);
             mFloorShader.setUniform("intensity", colors);
+            mFloorShader.setUniform("opacity", 0.2);
             mFloorShader.drawIndexed(GL_TRIANGLES, 0, m_numFloorFaces);
+        }
+
+        if (m_showBox) {
+            mBoxShader.bind();
+            if (m_boxSizeChanged) {
+                m_boxPoints.row(1).setConstant(m_boxHeight);
+                mBoxShader.uploadAttrib("position", m_boxPoints);
+                m_boxSizeChanged = false;
+            }
+            Vector3f color(0.8, 1, 0.8);
+            mBoxShader.setUniform("MV", mv);
+            mBoxShader.setUniform("P", p);
+            mBoxShader.setUniform("x_walls", Vector2f());
+            mBoxShader.setUniform("y_walls", Vector2f());
+            mBoxShader.setUniform("z_walls", Vector2f());
+            mBoxShader.setUniform("greenColor", color);
+            mBoxShader.drawIndexed(GL_TRIANGLES, 0, m_numBoxFaces);
         }
 
         if (true) {
@@ -993,6 +1066,7 @@ private:
     // Variables for the viewer
     nanogui::GLShader mShader;
     nanogui::GLShader mFloorShader;
+    nanogui::GLShader mBoxShader;
     nanogui::GLShader mSelectedVertexShader;
     nanogui::GLShader mSelectionQuadShader;
     nanogui::Window *window;
@@ -1031,6 +1105,26 @@ private:
     bool m_showFloor = false;
     int m_numFloorFaces = 0;
 
+    // X walls limits and points
+    MatrixXf m_xWallsPoints;
+    float m_xWallsLimit = 0;
+    bool m_showXWalls = false;
+    int m_numXWallsFaces = 0;
+
+    // Y walls limits and points
+    MatrixXf m_yWallsPoints;
+    float m_yWallsLimit = 0;
+    bool m_showYWalls = false;
+    int m_numYWallsFaces = 0;
+
+    // Z walls limits and points
+    MatrixXf m_zWallsPoints;
+    float m_zWallsLimit = 0;
+    bool m_showZWalls = false;
+    int m_numZWallsFaces = 0;
+
+    bool m_boxLimitsChanged = false;
+
     PopupButton *popupCurvature;
     FloatBox<float>* coefTextBox;
     IntBox<int>* iterationTextBox;
@@ -1061,7 +1155,7 @@ private:
 	// Callback function to be called after loading a mesh
 	bool (*m_mesh_load_callback)(Viewer*) = nullptr;
 
-    // Callback function to be called before loading a mesh, 
+    // Callback function to be called before loading a mesh,
     // but after the load button has been pushed
     bool (*m_pre_mesh_load_callback)(Viewer*) = nullptr;
 

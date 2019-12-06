@@ -357,6 +357,41 @@ namespace ProjDyn {
     };
 
     /**
+        Constraint that keeps the y position of a vertex between wallDistance and -wallDistance
+    */
+    class YWallsConstraint : public WallConstraint {
+    public:
+        YWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
+            :
+			WallConstraint(ind, weight, wallDistance, forceFactor)
+        {
+        }
+
+        virtual void project(const Positions& positions, Positions& projection) override {
+            // Check for correct size of the projection auxiliary variable;
+            assert(projection.rows() > m_constraint_id);
+            // Set corrected positions for vertices that are below the floor height
+            projection.row(m_constraint_id) = positions.row(m_vert_ind);
+            if (positions(m_vert_ind, 1) > m_wall_distance) {
+                projection(m_constraint_id, 1) = m_wall_distance;//(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
+            } else if (positions(m_vert_ind, 1) < -m_wall_distance) {
+                projection(m_constraint_id, 1) = m_wall_distance;//-(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
+            }
+        }
+        virtual ConstraintPtr copy() {
+            return std::make_shared<ZWallsConstraint>(*this);
+        }
+
+		virtual bool isColliding(Vector3 point) const override {
+			return point(2) >= m_wall_distance || point(2) <= -m_wall_distance;
+		}
+
+		virtual void frictionAxes(Index& i, Index& j) const override {
+			i = 0; j = 1;
+		}
+    };
+
+    /**
         Constraint that keeps the z position of a vertex between wallDistance and -wallDistance
     */
     class ZWallsConstraint : public WallConstraint {
@@ -373,9 +408,9 @@ namespace ProjDyn {
             // Set corrected positions for vertices that are below the floor height
             projection.row(m_constraint_id) = positions.row(m_vert_ind);
             if (positions(m_vert_ind, 2) > m_wall_distance) {
-                projection(m_constraint_id, 2) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
+                projection(m_constraint_id, 2) = m_wall_distance;//(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
             } else if (positions(m_vert_ind, 2) < -m_wall_distance) {
-                projection(m_constraint_id, 2) = -(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
+                projection(m_constraint_id, 2) = m_wall_distance;//-(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
             }
         }
         virtual ConstraintPtr copy() {
