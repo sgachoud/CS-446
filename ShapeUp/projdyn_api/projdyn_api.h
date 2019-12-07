@@ -207,19 +207,69 @@ public:
         new Label(pd_win, "Position Constraints", "sans-bold");
 
 
-        b = new Button(pd_win, "Fix Selection");
-        b->setCallback([this]() {
-            bool was_active = m_simActive;
-            stop();
-            const auto& selVerts = m_viewer->getSelectedVertices();
-            if (selVerts.size() == 0) return;
-            addPositionConstraintGroup(selVerts);
-            if (was_active) {
-                start();
-            }
-            m_viewer->clearSelection();
+		b = new Button(pd_win, "Fix Selection");
+		b->setCallback([this]() {
+			bool was_active = m_simActive;
+			stop();
+			const auto& selVerts = m_viewer->getSelectedVertices();
+			if (selVerts.size() == 0) return;
+			addPositionConstraintGroup(selVerts);
+			if (was_active) {
+				start();
+			}
+			m_viewer->clearSelection();
 //            update(true);
-        });
+		});
+
+		new Label(pd_win, "Point Explosion", "sans-bold");
+
+		b = new Button(pd_win, "Detonate");
+		b->setCallback([this]() {
+			bool was_active = m_simActive;
+			stop();
+			m_simulator.detonatePointExplosion();
+			if (was_active) {
+				start();
+			}
+		});
+
+		//Manage explosion strength
+		new Label(pd_win, "Explosion Strength", "sans-bold");
+		/*Slider* s = new Slider(pd_win);
+		s->setRange({ 0, 100 });
+		s->setFinalCallback([this,s](float v) {
+			bool wasRunning = m_simActive;
+			stop();
+			m_simulator.setPointExplosionStrength(s->value());
+			if (wasRunning) start();
+		});*/
+
+		TextBox*  t = new TextBox(pd_win);
+		t->setEditable(true);
+		t->setValue(ProjDyn::floatToString(m_simulator.getPointExplosion().getStrength()));
+		t->setCallback([this, t](const std::string& val) -> bool {
+			float v = std::stof(val);
+			bool wasRunning = m_simActive;
+			stop();
+			t->setValue(ProjDyn::floatToString(v));
+			m_simulator.setPointExplosionStrength(v);
+			if (wasRunning) start();
+			return true;
+		});
+
+
+		new Label(pd_win, "Explosion Center", "sans-bold");
+		//Manage Explosion center
+		PositionTextBox* p = new PositionTextBox(pd_win, m_simulator.getPointExplosion().getCenter());
+		p->setEditable(true);
+		p->setCallback([this,p](const std::string& val) -> bool {
+			bool wasRunning = m_simActive;
+			stop();
+			p->setValue(val);
+			m_simulator.setPointExplosionCenter(p->getPostition());
+			if (wasRunning) start();
+			return true;
+		});
 
         Label* iterations_label = new Label(pd_win, "Num Loc-Glob Its: ");
         IntBox<int>* iterations_box = new IntBox<int>(pd_win, m_numIterations);
