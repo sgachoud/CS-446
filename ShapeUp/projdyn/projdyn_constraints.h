@@ -726,6 +726,9 @@ namespace ProjDyn {
                 meanCurvatureVector = getTriangleNormal(m_triangles, positions) * m_rest_mean_curv;
             }
             else {
+                if (abs(norm - m_rest_mean_curv) > 10) {
+//                    m_rest_mean_curv += (norm - m_rest_mean_curv) / 10;
+                }
                 meanCurvatureVector *= m_rest_mean_curv / norm;
             }
 
@@ -909,7 +912,7 @@ namespace ProjDyn {
             //compute new rest_length
             Scalar tmp_rest_length = projection.row(m_constraint_id).norm();
             if (tmp_rest_length - m_rest_length > 0.025) {
-                m_rest_length += (tmp_rest_length - m_rest_length) / 3;
+                m_rest_length += (tmp_rest_length - m_rest_length) / 2;
             }
             // Rescale to rest length
             projection.row(m_constraint_id) /= projection.row(m_constraint_id).norm();
