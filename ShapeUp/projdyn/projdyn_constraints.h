@@ -62,7 +62,7 @@ namespace ProjDyn {
 
 		/** Call after solving local-global algorithm such that the constraint can be updated
 		*/
-		virtual void update(){}
+		virtual void update(const Positions& positions){}
         /** Add the constraint to the matrix A that maps vertex positions to the linear part of the constraint projection.
             Specifically, adds a row w_i S_i A_i to the matrix (as triplets), where the notation of the paper is used.
                 triplets - A list of all triplets (row, col, entry) that is being built to construct the full matrix A
@@ -425,7 +425,7 @@ namespace ProjDyn {
 				projection(m_constraint_id, j) = m_prev_pos(j);
 			}
 		}
-		virtual void update() override {
+		virtual void update(const Positions&) override {//todo: clean that method
 			m_prev_pos = m_positions.row(m_vert_ind);
 		}
 

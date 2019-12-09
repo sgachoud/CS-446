@@ -197,7 +197,7 @@ namespace ProjDyn {
 			//updates constraints
 #pragma omp parallel for
 			for (int j = 0; j < m_constraints.size(); j++) {
-				m_constraints[j]->update();
+				m_constraints[j]->update(m_positions);
 			}
 
 			//updates point explosion
