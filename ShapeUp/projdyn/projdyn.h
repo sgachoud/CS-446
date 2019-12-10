@@ -238,6 +238,9 @@ namespace ProjDyn {
 		void resetPositions() {
 			m_positions = m_initial_positions;
 			m_velocities.setZero(m_positions.rows(), 3);
+            for (int j = 0; j < m_constraints.size(); j++) {
+                m_constraints[j]->reset();
+            }
 		}
 
 		const Triangles& getTriangles() {
@@ -532,7 +535,7 @@ namespace ProjDyn {
 			m_mass_matrix.resize(m_num_verts, m_num_verts);
 			m_mass_matrix.setIdentity();
 			for (int i = 0; i < m_num_verts; i++) {
-				m_mass_matrix.coeffRef(i, i) = m_vertex_masses(i);
+				m_mass_matrix.coeffRef(i, i) =  std::max(m_vertex_masses(i), 0.0001);
 			}
 		}
 	};

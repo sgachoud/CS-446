@@ -150,16 +150,6 @@ public:
             popupBtn->setPushed(false);
         });
         
-        b = new Button(popup, "Plasticity");
-        b->setCallback([this, popupBtn]() {
-            bool was_active = m_simActive;
-            stop();
-            addPlasticityConstraints();
-            if (was_active) {
-                start();
-            }
-            popupBtn->setPushed(false);
-        });
 
         b = new Button(popup, "Triangle Strain");
         b->setCallback([this, popupBtn]() {
@@ -717,32 +707,6 @@ public:
         }
     }
     
-    void addPlasticityConstraints(ProjDyn::Scalar weight = 1.) {
-        // For tet meshes we cannot use Surface_mesh
-        if (m_simulator.getTetrahedrons().rows() > 0) {
-            addPlasticityConstraintsTets(weight);
-        }
-        else {
-            const ProjDyn::Positions& sim_verts = m_simulator.getInitialPositions();
-            const ProjDyn::Triangles& tris = m_simulator.getTriangles();
-            Surface_mesh* smesh = m_viewer->getMesh();
-            std::vector<ProjDyn::ConstraintPtr> spring_constraints;
-            for (auto edge : smesh->edges()) {
-                // The weight is set to the edge length
-                ProjDyn::Scalar w = (sim_verts.row(smesh->vertex(edge, 0).idx()) - sim_verts.row(smesh->vertex(edge, 1).idx())).norm();
-                if (w > 1e-6) {
-                    // The constraint is constructed, made into a shared pointer and appended to the list
-                    // of constraints.
-                    std::vector<Index> edge_inds;
-                    edge_inds.push_back(smesh->vertex(edge, 0).idx());
-                    edge_inds.push_back(smesh->vertex(edge, 1).idx());
-                    ProjDyn::PlasicityConstraint* esc = new ProjDyn::PlasicityConstraint(edge_inds, w, sim_verts);
-                    spring_constraints.push_back(std::shared_ptr<ProjDyn::PlasicityConstraint>(esc));
-                }
-            }
-            addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("Plasticity", spring_constraints, weight));
-        }
-    }
     
     std::shared_ptr<ProjDyn::PositionConstraintGroup> createPositionConstraint(const std::vector<Index>& indices, ProjDyn::Scalar weight) {
         const ProjDyn::Positions& curPos = getPositions();
@@ -844,31 +808,4 @@ private:
         addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("Edge Springs", spring_constraints, weight));
     }
     
-    void addPlasticityConstraintsTets(ProjDyn::Scalar weight = 1.) {
-        const ProjDyn::Positions& sim_verts = m_simulator.getInitialPositions();
-        std::vector<ProjDyn::ConstraintPtr> spring_constraints;
-        const ProjDyn::Tetrahedrons& tets = m_simulator.getTetrahedrons();
-        // If tets are available, add a spring on each tet-edge
-        for (Index i = 0; i < tets.rows(); i++) {
-            for (int j = 0; j < 4; j++) {
-                std::vector<ProjDyn::Index> edge;
-                edge.push_back(tets(i, j));
-                edge.push_back(tets(i, (j + 1) % 4));
-                // Easy way to make sure each edge only gets added once:
-                if (edge[0] < edge[1]) {
-                    // The weight is set to the edge length
-                    ProjDyn::Scalar w = (sim_verts.row(edge[0]) - sim_verts.row(edge[1])).norm();
-                    if (w > 1e-6) {
-                        // The constraint is constructed, made into a shared pointer and appended to the list
-                        // of constraints.
-                        ProjDyn::PlasicityConstraint* esc = new ProjDyn::PlasicityConstraint(edge, w, sim_verts);
-                        spring_constraints.push_back(std::shared_ptr<ProjDyn::PlasicityConstraint>(esc));
-                    }
-                }
-            }
-        }
-
-        // Add constraints
-        addConstraints(std::make_shared<ProjDyn::ConstraintGroup>("Plasticity", spring_constraints, weight));
-    }
 };
