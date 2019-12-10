@@ -63,6 +63,11 @@ namespace ProjDyn {
 		/** Call after solving local-global algorithm such that the constraint can be updated
 		*/
 		virtual void update(const Positions& positions){}
+    
+        /** Reset the updated constraints
+         */
+        virtual void reset(){}
+    
         /** Add the constraint to the matrix A that maps vertex positions to the linear part of the constraint projection.
             Specifically, adds a row w_i S_i A_i to the matrix (as triplets), where the notation of the paper is used.
                 triplets - A list of all triplets (row, col, entry) that is being built to construct the full matrix A
@@ -163,6 +168,7 @@ namespace ProjDyn {
             assert(m_vertex_indices.size() == 2);
             // Compute rest edge length
             m_rest_length = (positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0])).norm();
+            m_base_rest_length = m_rest_length;
         }
 
         virtual void project(const Positions& positions, Positions& projection) override {
@@ -174,6 +180,19 @@ namespace ProjDyn {
             projection.row(m_constraint_id) /= projection.row(m_constraint_id).norm();
             projection.row(m_constraint_id) *= m_rest_length;
         }
+        
+        virtual void update(const Positions& positions) override {
+            Scalar plasticity_threshold = 0.3;
+            Scalar plasticity_factor = 0.5;
+            Scalar new_rest_length = (positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0])).norm();
+            if (new_rest_length - m_rest_length > plasticity_threshold) {
+                m_rest_length += (new_rest_length - m_rest_length) * plasticity_factor;
+            }
+        }
+        
+        virtual void reset() override {
+            m_rest_length = m_base_rest_length;
+        }
 
         virtual Index getNumConstraintRows() override { return 1; };
 
@@ -182,6 +201,7 @@ namespace ProjDyn {
         }
     protected:
         Scalar m_rest_length = 0;
+        Scalar m_base_rest_length = 0;
 
         virtual std::vector<Triplet> getTriplets(Index currentRow) override {
             std::vector<Triplet> triplets;
@@ -695,6 +715,7 @@ namespace ProjDyn {
             }
             m_rest_mean_curv_vec = meanCurvatureVector;
             m_rest_mean_curv = meanCurvatureVector.norm();
+            m_base_rest_mean_curv = m_rest_mean_curv;
 
             // Compute and store the dot product of the mean curvature vector with the
             // normal.
@@ -726,9 +747,6 @@ namespace ProjDyn {
                 meanCurvatureVector = getTriangleNormal(m_triangles, positions) * m_rest_mean_curv;
             }
             else {
-                if (abs(norm - m_rest_mean_curv) > 10) {
-//                    m_rest_mean_curv += (norm - m_rest_mean_curv) / 10;
-                }
                 meanCurvatureVector *= m_rest_mean_curv / norm;
             }
 
@@ -744,6 +762,28 @@ namespace ProjDyn {
             projection.row(m_constraint_id) = meanCurvatureVector;
         }
 
+        virtual void update(const Positions& positions) override {
+            Scalar plasticity_threshold = 3;
+            Scalar plasticity_factor = 0.2;
+            
+            Eigen::Matrix<Scalar, 1, 3> meanCurvatureVector;
+            meanCurvatureVector.setZero();
+            int nb = 0;
+            for (Edge e : m_vertex_star) {
+                meanCurvatureVector += (positions.row(m_vertex_indices[0]) - positions.row(e.v2)) * m_cotan_weights(nb);
+                nb++;
+            }
+            Scalar norm = meanCurvatureVector.norm();
+            
+            if (abs(m_rest_mean_curv - norm) > plasticity_factor) {
+                m_rest_mean_curv += (norm - m_rest_mean_curv) * plasticity_factor;
+            }
+        }
+        
+        virtual void reset() override {
+            m_rest_mean_curv = m_base_rest_mean_curv;
+        }
+        
         virtual Index getNumConstraintRows() override { return 1; }
 
         virtual ConstraintPtr copy() {
@@ -754,6 +794,7 @@ namespace ProjDyn {
         Vector m_cotan_weights;
         Scalar m_dot_with_normal;
         Scalar m_rest_mean_curv;
+        Scalar m_base_rest_mean_curv;
         Eigen::Matrix<Scalar, 1, 3> m_rest_mean_curv_vec;
         Triangles m_triangles;
         virtual std::vector<Triplet> getTriplets(Index currentRow) override {
@@ -891,49 +932,5 @@ namespace ProjDyn {
         }
     };
 
-    class PlasicityConstraint : public Constraint {
-    public:
-        PlasicityConstraint(const std::vector<Index>& edge_vertices, Scalar weight,
-            const Positions& positions)
-            :
-            Constraint(edge_vertices, weight)
-        {
-            // Make sure there are at most two vertices in the edge
-            assert(m_vertex_indices.size() == 2);
-            // Compute rest edge length
-            m_rest_length = (positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0])).norm();
-        }
-
-        virtual void project(const Positions& positions, Positions& projection) override {
-            // Check for correct size of the projection auxiliary variable;
-            assert(projection.rows() > m_constraint_id);
-            // Compute the current edge
-            projection.row(m_constraint_id) = positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0]);
-            //compute new rest_length
-            Scalar tmp_rest_length = projection.row(m_constraint_id).norm();
-            if (tmp_rest_length - m_rest_length > 0.025) {
-                m_rest_length += (tmp_rest_length - m_rest_length) / 2;
-            }
-            // Rescale to rest length
-            projection.row(m_constraint_id) /= projection.row(m_constraint_id).norm();
-            projection.row(m_constraint_id) *= m_rest_length;
-        }
-
-        virtual Index getNumConstraintRows() override { return 1; };
-
-        virtual ConstraintPtr copy() {
-            return std::make_shared<PlasicityConstraint>(*this);
-        }
-    protected:
-        Scalar m_rest_length = 0;
-
-        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
-            std::vector<Triplet> triplets;
-            triplets.push_back(Triplet(currentRow, m_vertex_indices[0], -1));
-            triplets.push_back(Triplet(currentRow, m_vertex_indices[1], 1));
-
-            return triplets;
-        }
-    };
 
 }
