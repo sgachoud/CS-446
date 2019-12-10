@@ -416,59 +416,236 @@ public:
             "}"
         );
 
-        mFloorShader.init(
-            "floor_shader",
+        //mFloorShader.init(
+        //    "floor_shader",
 
-            /* Vertex shader */
-            "#version 330\n"
-            "uniform mat4 MV;\n"
-            "uniform mat4 P;\n"
+        //    /* Vertex shader */
+        //    "#version 330\n"
+        //    "uniform mat4 MV;\n"
+        //    "uniform mat4 P;\n"
 
-            "in vec3 position;\n"
-            "in vec3 normal;\n"
+        //    "in vec3 position;\n"
+        //    "in vec3 normal;\n"
 
-            "out vec3 fnormal;\n"
-            "out vec3 view_dir;\n"
-            "out vec3 light_dir;\n"
+        //    "out vec3 fnormal;\n"
+        //    "out vec3 view_dir;\n"
+        //    "out vec3 light_dir;\n"
 
-            "void main() {\n"
-            "    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
-            "    gl_Position = P * vpoint_mv;\n"
-            "    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
-            "    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
-            "    view_dir = -vpoint_mv.xyz;\n"
-            "}",
+        //    "void main() {\n"
+        //    "    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+        //    "    gl_Position = P * vpoint_mv;\n"
+        //    "    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+        //    "    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+        //    "    view_dir = -vpoint_mv.xyz;\n"
+        //    "}",
 
-            /* Fragment shader */
-            "#version 330\n"
-            "uniform vec3 intensity;\n"
+        //    /* Fragment shader */
+        //    "#version 330\n"
+        //    "uniform vec3 intensity;\n"
 
-            "in vec3 fnormal;\n"
-            "in vec3 view_dir;\n"
-            "in vec3 light_dir;\n"
+        //    "in vec3 fnormal;\n"
+        //    "in vec3 view_dir;\n"
+        //    "in vec3 light_dir;\n"
 
-            "out vec4 color;\n"
+        //    "out vec4 color;\n"
 
-            "void main() {\n"
-            "    vec3 c = vec3(0.0);\n"
-            "    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
-            "    vec3 n = normalize(fnormal);\n"
-            "    vec3 v = normalize(view_dir);\n"
-            "    vec3 l = normalize(light_dir);\n"
-            "    float lambert = dot(n,l);\n"
-            "    if(lambert > 0.0) {\n"
-            "        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
-            "        vec3 v = normalize(view_dir);\n"
-            "        vec3 r = reflect(-l,n);\n"
-            "        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
-            "    }\n"
-            "    c *= vec3(0.23, 0.29, 0.4);\n"
-            "    if (intensity == vec3(0.0)) {\n"
-            "        c = intensity;\n"
-            "    }\n"
-            "    color = vec4(c, 1.0);\n"
-            "}"
-        );
+        //    "void main() {\n"
+        //    "    vec3 c = vec3(0.0);\n"
+        //    "    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
+        //    "    vec3 n = normalize(fnormal);\n"
+        //    "    vec3 v = normalize(view_dir);\n"
+        //    "    vec3 l = normalize(light_dir);\n"
+        //    "    float lambert = dot(n,l);\n"
+        //    "    if(lambert > 0.0) {\n"
+        //    "        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
+        //    "        vec3 v = normalize(view_dir);\n"
+        //    "        vec3 r = reflect(-l,n);\n"
+        //    "        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
+        //    "    }\n"
+        //    "    c *= vec3(0.23, 0.29, 0.4);\n"
+        //    "    if (intensity == vec3(0.0)) {\n"
+        //    "        c = intensity;\n"
+        //    "    }\n"
+        //    "    color = vec4(c, 1.0);\n"
+        //    "}"
+        //);
+
+		//mFloorShader.init(
+		//	"floor_shader",
+
+		//	/* Vertex shader */
+		//	"#version 330\n"
+		//	"uniform mat4 MV;\n"
+		//	"uniform mat4 P;\n"
+
+		//	"in vec3 position;\n"
+		//	"in vec3 normal;\n"
+
+		//	"out vec3 fnormal;\n"
+		//	"out vec3 view_dir;\n"
+		//	"out vec3 light_dir;\n"
+		//	"out vec3 pos;\n"
+
+		//	"void main() {\n"
+		//	"    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+		//	"    gl_Position = P * vpoint_mv;\n"
+		//	"    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+		//	"    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+		//	"    view_dir = -vpoint_mv.xyz;\n"
+		//	"	 pos = position;\n"
+		//	"}",
+
+		//	/* Fragment shader */
+		//	"#version 330\n"
+		//	"uniform vec3 intensity;\n"
+
+		//	"in vec3 fnormal;\n"
+		//	"in vec3 view_dir;\n"
+		//	"in vec3 light_dir;\n"
+		//	"in vec3 pos;\n"
+
+		//	"out vec4 color;\n"
+
+		//	"void main() {\n"
+		//	"    vec3 c = vec3(0.0);\n"
+		//	"    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
+		//	"    vec3 n = normalize(fnormal);\n"
+		//	"    vec3 v = normalize(view_dir);\n"
+		//	"    vec3 l = normalize(light_dir);\n"
+		//	"    float lambert = dot(n,l);\n"
+		//	"    if(lambert > 0.0) {\n"
+		//	"        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
+		//	"        vec3 v = normalize(view_dir);\n"
+		//	"        vec3 r = reflect(-l,n);\n"
+		//	"        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
+		//	"    }\n"
+		//	"    c *= vec3(0.23, 0.29, 0.4);\n"
+		//	"    if (intensity == vec3(0.0)) {\n"
+		//	"        c = intensity;\n"
+		//	"    }\n"
+		//	"	 int x = int(pos[0]);\n"
+		//	"	 int z = int(pos[2]);\n"
+		//	"	 if (pos[0] < 0) x = -x + 1;\n"
+		//	"	 if (pos[2] < 0) z = -z + 1;\n"
+		//	"	 if (x % 2 != z % 2) {\n"
+		//	"		 c = vec3(1.0) - c;\n"
+		//	"	 }\n"
+		//	"    color = vec4(c, 0.8);\n"
+		//	"}"
+		//);
+
+		mFloorShader.init(
+		    "floor_shader",
+
+		    /* Vertex shader */
+		    "#version 330\n"
+		    "uniform mat4 MV;\n"
+		    "uniform mat4 P;\n"
+
+		    "in vec3 position;\n"
+		    "in vec3 normal;\n"
+
+		    "out vec3 fnormal;\n"
+		    "out vec3 view_dir;\n"
+		    "out vec3 light_dir;\n"
+			"out vec3 pos;\n"
+
+		    "void main() {\n"
+		    "    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+		    "    gl_Position = P * vpoint_mv;\n"
+		    "    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+		    "    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+		    "    view_dir = -vpoint_mv.xyz;\n"
+			"	 pos = position;\n"
+		    "}",
+
+		    /* Fragment shader */
+		    "#version 330\n"
+		    "uniform vec3 intensity;\n"
+
+		    "in vec3 fnormal;\n"
+		    "in vec3 view_dir;\n"
+		    "in vec3 light_dir;\n"
+			"in vec3 pos;\n"
+
+		    "out vec4 color;\n"
+
+		    "void main() {\n"
+		    "    vec3 c = vec3(0.0);\n"
+		    "    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
+		    "    vec3 n = normalize(fnormal);\n"
+		    "    vec3 v = normalize(view_dir);\n"
+		    "    vec3 l = normalize(light_dir);\n"
+		    "    float lambert = dot(n,l);\n"
+		    "    if(lambert > 0.0) {\n"
+		    "        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
+		    "        vec3 v = normalize(view_dir);\n"
+		    "        vec3 r = reflect(-l,n);\n"
+		    "        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
+		    "    }\n"
+		    "    c *= vec3(0.23, 0.29, 0.4);\n"
+		    "    if (intensity == vec3(0.0)) {\n"
+		    "        c = intensity;\n"
+		    "    }\n"
+			"	 float x = pos[0];\n"
+			"	 float z = pos[2];\n"
+			"	 float tmp = (z - pow(x*x, 1.0/3.0));\n"
+			"	 float y = tmp*tmp + x*x - 1;\n"
+			"	 if (y < 0) c = vec3(1.0, 0.0, 0.0);\n"
+		    "    color = vec4(c, 1.0);\n"
+		    "}"
+		);
+
+		//mFloorShader.init(
+		//	"floor_shader",
+
+		//	/* Vertex shader */
+		//	"#version 330\n"
+		//	"uniform mat4 MV;\n"
+		//	"uniform mat4 P;\n"
+
+		//	"in vec3 position;\n"
+		//	"in vec3 normal;\n"
+
+		//	"out vec3 fnormal;\n"
+		//	"out vec3 view_dir;\n"
+		//	"out vec3 light_dir;\n"
+		//	"out vec3 pos;\n"
+
+		//	"void main() {\n"
+		//	"    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+		//	"    gl_Position = P * vpoint_mv;\n"
+		//	"    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+		//	"    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+		//	"    view_dir = -vpoint_mv.xyz;\n"
+		//	"	 pos = position;\n"
+		//	"}",
+
+		//	/* Fragment shader */
+		//	"#version 330\n"
+		//	"uniform vec3 intensity;\n"
+
+		//	"in vec3 fnormal;\n"
+		//	"in vec3 view_dir;\n"
+		//	"in vec3 light_dir;\n"
+		//	"in vec3 pos;\n"
+
+		//	"out vec4 color;\n"
+
+		//	"void main() {\n"
+		//	"    vec3 c = vec3(0.0);\n"
+		//	"    vec3 n = normalize(fnormal);\n"
+		//	"    vec3 v = normalize(view_dir);\n"
+		//	"    vec3 l = normalize(light_dir);\n"
+		//	"	 float x = pos[0];\n"
+		//	"	 float z = pos[2];\n"
+		//	"	 float tmp = (z - pow(x*x, 1.0/3.0));\n"
+		//	"	 float y = tmp*tmp + x*x - 1;\n"
+		//	"	 if (y < 0) c = vec3(1.0, 0.0, 0.0);\n"
+		//	"	 else c = vec3(1.0, 1.0, 1.0);\n"
+		//	"    color = vec4(c, 0.8);\n"
+		//	"}"
+		//);
 
         mSelectedVertexShader.init(
             "selected_vertex_shader",
