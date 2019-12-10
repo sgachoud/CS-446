@@ -255,13 +255,13 @@ namespace ProjDyn {
 	*/
 	class WallConstraint : public Constraint {
 	public:
-		WallConstraint(Index ind, Scalar weight, unsigned int normalAxe, 
+		WallConstraint(Index ind, Scalar weight, Axis normalAxis, 
 			Scalar firstPos = -std::numeric_limits<Scalar>::infinity(), 
 			Scalar secondPos = std::numeric_limits<Scalar>::infinity(), 
 			Scalar forceFactor = 1.)
 			:
 			Constraint({ ind }, weight),
-			m_normal_axe(normalAxe),
+			m_normal_axis(normalAxis),
 			m_first_pos(firstPos),
 			m_second_pos(secondPos),
 			m_vert_ind(ind),
@@ -269,9 +269,6 @@ namespace ProjDyn {
 		{
 			if (m_first_pos > m_second_pos) 
 				std::swap(m_first_pos, m_second_pos);
-
-			if (m_normal_axe > 2)
-				m_normal_axe = 2;
 		}
 
 		virtual Index getNumConstraintRows() override { return 1; }
@@ -282,13 +279,13 @@ namespace ProjDyn {
 			// Set corrected positions for vertices that are below the floor height
 			projection.row(m_constraint_id) = positions.row(m_vert_ind);
 
-			if (positions(m_vert_ind, m_normal_axe) > m_second_pos) {
-				projection(m_constraint_id, m_normal_axe) =
-					(1 + m_force_factor) * m_second_pos - m_force_factor * positions(m_vert_ind, m_normal_axe);
+			if (positions(m_vert_ind, m_normal_axis) > m_second_pos) {
+				projection(m_constraint_id, m_normal_axis) =
+					(1 + m_force_factor) * m_second_pos - m_force_factor * positions(m_vert_ind, m_normal_axis);
 			}
-			else if (positions(m_vert_ind, m_normal_axe) < m_first_pos) {
-				projection(m_constraint_id, m_normal_axe) =
-					(1 + m_force_factor) * m_first_pos - m_force_factor * positions(m_vert_ind, m_normal_axe);
+			else if (positions(m_vert_ind, m_normal_axis) < m_first_pos) {
+				projection(m_constraint_id, m_normal_axis) =
+					(1 + m_force_factor) * m_first_pos - m_force_factor * positions(m_vert_ind, m_normal_axis);
 			}
 
 		}
@@ -296,12 +293,15 @@ namespace ProjDyn {
 		/** Test for collision, i.e. if point is behind or touching the wall
 		*/
 		virtual bool isColliding(Vector3 point) const {
-			return point(m_normal_axe) >= m_second_pos || point(m_normal_axe) <= m_first_pos;
+			return point(m_normal_axis) >= m_second_pos || point(m_normal_axis) <= m_first_pos;
 		}
 
 		/** Store in i and j the directions of the friction (x:0,y:1,z:2)
 		*/
-		virtual void frictionAxes(Index& i, Index& j) const = 0;
+		virtual void frictionAxes(Axis& i, Axis& j) const {
+			i = Axis((m_normal_axis + 1) % 3);
+			j = Axis((m_normal_axis + 2) % 3);
+		};
 
 	protected:
 		virtual std::vector<Triplet> getTriplets(Index currentRow) override {
@@ -311,7 +311,7 @@ namespace ProjDyn {
 		}
 
 	private:
-		unsigned int m_normal_axe;
+		Axis m_normal_axis;
 		Scalar m_first_pos;
 		Scalar m_second_pos;
 		Index m_vert_ind;
@@ -325,7 +325,7 @@ namespace ProjDyn {
     public:
         FloorConstraint(Index ind, Scalar weight, Scalar floorHeight, Scalar forceFactor = 1.)
             :
-			WallConstraint(ind, weight, 1, floorHeight, std::numeric_limits<Scalar>::infinity(), forceFactor)
+			WallConstraint(ind, weight, Axis::Y, floorHeight, std::numeric_limits<Scalar>::infinity(), forceFactor)
         {
         }
 
@@ -333,8 +333,8 @@ namespace ProjDyn {
             return std::make_shared<FloorConstraint>(*this);
         }
 
-		virtual void frictionAxes(Index& i, Index& j) const override {
-			i = 0; j = 2;
+		virtual void frictionAxes(Axis& i, Axis& j) const override {
+			i = Axis::X; j = Axis::Z;
 		}
     };
 
@@ -345,7 +345,7 @@ namespace ProjDyn {
     public:
         XWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
             :
-			WallConstraint(ind, weight, 0, -wallDistance, wallDistance, forceFactor)
+			WallConstraint(ind, weight, Axis::X, -wallDistance, wallDistance, forceFactor)
         {
         }
 
@@ -353,8 +353,8 @@ namespace ProjDyn {
             return std::make_shared<XWallsConstraint>(*this);
         }
 
-		virtual void frictionAxes(Index& i, Index& j) const override {
-			i = 1; j = 2;
+		virtual void frictionAxes(Axis& i, Axis& j) const override {
+			i = Axis::Y; j = Axis::Z;
 		}
     };
 
@@ -365,7 +365,7 @@ namespace ProjDyn {
 	public:
 		YWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
 			:
-			WallConstraint(ind, weight, 1, -wallDistance, wallDistance, forceFactor)
+			WallConstraint(ind, weight, Axis::Y, -wallDistance, wallDistance, forceFactor)
 		{
 		}
 
@@ -373,8 +373,8 @@ namespace ProjDyn {
 			return std::make_shared<YWallsConstraint>(*this);
 		}
 
-		virtual void frictionAxes(Index& i, Index& j) const override {
-			i = 0; j = 2;
+		virtual void frictionAxes(Axis& i, Axis& j) const override {
+			i = Axis::X; j = Axis::Z;
 		}
 	};
 
@@ -385,7 +385,7 @@ namespace ProjDyn {
     public:
         ZWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
             :
-			WallConstraint(ind, weight, 2, -wallDistance, wallDistance, forceFactor)
+			WallConstraint(ind, weight, Axis::Z, -wallDistance, wallDistance, forceFactor)
         {
         }
 
@@ -393,8 +393,8 @@ namespace ProjDyn {
             return std::make_shared<ZWallsConstraint>(*this);
         }
 
-		virtual void frictionAxes(Index& i, Index& j) const override {
-			i = 0; j = 1;
+		virtual void frictionAxes(Axis& i, Axis& j) const override {
+			i = Axis::X; j = Axis::Y;
 		}
     };
 
@@ -408,8 +408,7 @@ namespace ProjDyn {
 			Constraint({ ind }, weight),
 			m_wall_constraint(wallConstraint),
 			m_vert_ind(ind),
-			m_prev_pos(positions.row(ind)),
-			m_positions(positions)
+			m_prev_pos(positions.row(ind))
 		{
 		}
 
@@ -419,14 +418,14 @@ namespace ProjDyn {
 			// Set corrected positions for vertices that are below the floor height
 			projection.row(m_constraint_id) = positions.row(m_vert_ind);
 			if (m_wall_constraint && m_wall_constraint->isColliding(positions.row(m_vert_ind))) {
-				Index i(0), j(0);
+				Axis i(Axis::X), j(Axis::X);
 				m_wall_constraint->frictionAxes(i,j);
 				projection(m_constraint_id, i) = m_prev_pos(i);
 				projection(m_constraint_id, j) = m_prev_pos(j);
 			}
 		}
-		virtual void update(const Positions&) override {//todo: clean that method
-			m_prev_pos = m_positions.row(m_vert_ind);
+		virtual void update(const Positions& positions) override {
+			m_prev_pos = positions.row(m_vert_ind);
 		}
 
 		virtual Index getNumConstraintRows() override { return 1; }
@@ -446,7 +445,6 @@ namespace ProjDyn {
 		std::shared_ptr<WallConstraint> m_wall_constraint;
 		Vector3 m_prev_pos;
 		Index m_vert_ind;
-		Positions const& m_positions;
 	};
 
     /**

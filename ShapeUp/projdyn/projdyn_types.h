@@ -38,4 +38,10 @@ namespace ProjDyn {
 	typedef SparseMatrixT<Eigen::RowMajor> SparseMatrixRM;		// A row-major sparse matrix.
 	typedef Eigen::Triplet<Scalar> Triplet;						// A triplet, used in the sparse triplet representation for matrices.
 
+	//Define axes for 3D
+	enum Axis {
+		X,
+		Y,
+		Z
+	};
 }
