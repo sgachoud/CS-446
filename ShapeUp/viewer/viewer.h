@@ -26,6 +26,7 @@
 #include <nanogui/textbox.h>
 #include <nanogui/tabwidget.h>
 #include <surface_mesh/Surface_mesh.h>
+#include "point_explosion.h"
 
 #if defined(__GNUC__)
 #  pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -204,6 +205,15 @@ public:
         m_showFloor = show;
     }
 
+	void movePESphereTo(ProjDyn::Vector3 pos) {
+		m_pe_sphere.translateTo(pos);
+		m_sphereChanged = true;
+	}
+
+	void showPointExplosion(bool show) {
+		m_showPointExplosion = show;
+	}
+
     void meshProcess() {
         Point default_normal(0.0, 1.0, 0.0);
         Surface_mesh::Vertex_property<Point> vertex_normal =
@@ -291,6 +301,16 @@ public:
         mFloorShader.uploadAttrib("position", m_floorPoints);
         mFloorShader.uploadAttrib("normal", floor_normals);
 
+		// Initialize Point Explosion shader
+		MatrixXf sphere_v_color(3, m_pe_sphere.getNumFace());
+		sphere_v_color.setZero();
+		for (int i = 0; i < m_pe_sphere.getNumFace(); i++) sphere_v_color.col(i) = Vector3f(0.98, 0.59, 0.04);
+		mPointExplosionShader.bind();
+		mPointExplosionShader.uploadIndices(m_pe_sphere.getSphereIndicesGrid());
+		mPointExplosionShader.uploadAttrib("position", m_pe_sphere.getSpherePointsGrid());
+		mPointExplosionShader.uploadAttrib("normal", m_pe_sphere.getSphereNormalsGrid());
+		mPointExplosionShader.uploadAttrib("color", sphere_v_color);
+
         MatrixXf selected(3, n_vertices);
         selected.setZero();
         m_updated_vertex_selections.setZero(3, n_vertices);
@@ -358,181 +378,63 @@ public:
 
     void initShaders() {
         // Shaders
-        mShader.init(
-            "a_simple_shader",
+		mShader.init(
+			"a_simple_shader",
 
-            /* Vertex shader */
-            "#version 330\n"
-            "uniform mat4 MV;\n"
-            "uniform mat4 P;\n"
+			/* Vertex shader */
+			"#version 330\n"
+			"uniform mat4 MV;\n"
+			"uniform mat4 P;\n"
 
-            "in vec3 position;\n"
-            "in vec3 normal;\n"
-            "in vec3 color;\n"
+			"in vec3 position;\n"
+			"in vec3 normal;\n"
+			"in vec3 color;\n"
 
-            "out vec3 fcolor;\n"
-            "out vec3 fnormal;\n"
-            "out vec3 view_dir;\n"
-            "out vec3 light_dir;\n"
+			"out vec3 fcolor;\n"
+			"out vec3 fnormal;\n"
+			"out vec3 view_dir;\n"
+			"out vec3 light_dir;\n"
 
-            "void main() {\n"
-            "    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
-            "    gl_Position = P * vpoint_mv;\n"
-            "    fcolor = color;\n"
-            "    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
-            "    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
-            "    view_dir = -vpoint_mv.xyz;\n"
-            "}",
+			"void main() {\n"
+			"    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+			"    gl_Position = P * vpoint_mv;\n"
+			"    fcolor = color;\n"
+			"    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+			"    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+			"    view_dir = -vpoint_mv.xyz;\n"
+			"}",
 
-            /* Fragment shader */
-            "#version 330\n"
-            "uniform vec3 intensity;\n"
+			/* Fragment shader */
+			"#version 330\n"
+			"uniform vec3 intensity;\n"
 
-            "in vec3 fcolor;\n"
-            "in vec3 fnormal;\n"
-            "in vec3 view_dir;\n"
-            "in vec3 light_dir;\n"
+			"in vec3 fcolor;\n"
+			"in vec3 fnormal;\n"
+			"in vec3 view_dir;\n"
+			"in vec3 light_dir;\n"
 
-            "out vec4 color;\n"
+			"out vec4 color;\n"
 
-            "void main() {\n"
-            "    vec3 c = vec3(0.0);\n"
-            "    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
-            "    vec3 n = normalize(fnormal);\n"
-            "    vec3 v = normalize(view_dir);\n"
-            "    vec3 l = normalize(light_dir);\n"
-            "    float lambert = dot(n,l);\n"
-            "    if(lambert > 0.0) {\n"
-            "        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
-            "        vec3 v = normalize(view_dir);\n"
-            "        vec3 r = reflect(-l,n);\n"
-            "        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
-            "    }\n"
-            "    c *= fcolor;\n"
-            "    if (intensity == vec3(0.0)) {\n"
-            "        c = intensity;\n"
-            "    }\n"
-            "    color = vec4(c, 1.0);\n"
-            "}"
-        );
-
-        //mFloorShader.init(
-        //    "floor_shader",
-
-        //    /* Vertex shader */
-        //    "#version 330\n"
-        //    "uniform mat4 MV;\n"
-        //    "uniform mat4 P;\n"
-
-        //    "in vec3 position;\n"
-        //    "in vec3 normal;\n"
-
-        //    "out vec3 fnormal;\n"
-        //    "out vec3 view_dir;\n"
-        //    "out vec3 light_dir;\n"
-
-        //    "void main() {\n"
-        //    "    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
-        //    "    gl_Position = P * vpoint_mv;\n"
-        //    "    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
-        //    "    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
-        //    "    view_dir = -vpoint_mv.xyz;\n"
-        //    "}",
-
-        //    /* Fragment shader */
-        //    "#version 330\n"
-        //    "uniform vec3 intensity;\n"
-
-        //    "in vec3 fnormal;\n"
-        //    "in vec3 view_dir;\n"
-        //    "in vec3 light_dir;\n"
-
-        //    "out vec4 color;\n"
-
-        //    "void main() {\n"
-        //    "    vec3 c = vec3(0.0);\n"
-        //    "    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
-        //    "    vec3 n = normalize(fnormal);\n"
-        //    "    vec3 v = normalize(view_dir);\n"
-        //    "    vec3 l = normalize(light_dir);\n"
-        //    "    float lambert = dot(n,l);\n"
-        //    "    if(lambert > 0.0) {\n"
-        //    "        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
-        //    "        vec3 v = normalize(view_dir);\n"
-        //    "        vec3 r = reflect(-l,n);\n"
-        //    "        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
-        //    "    }\n"
-        //    "    c *= vec3(0.23, 0.29, 0.4);\n"
-        //    "    if (intensity == vec3(0.0)) {\n"
-        //    "        c = intensity;\n"
-        //    "    }\n"
-        //    "    color = vec4(c, 1.0);\n"
-        //    "}"
-        //);
-
-		//mFloorShader.init(
-		//	"floor_shader",
-
-		//	/* Vertex shader */
-		//	"#version 330\n"
-		//	"uniform mat4 MV;\n"
-		//	"uniform mat4 P;\n"
-
-		//	"in vec3 position;\n"
-		//	"in vec3 normal;\n"
-
-		//	"out vec3 fnormal;\n"
-		//	"out vec3 view_dir;\n"
-		//	"out vec3 light_dir;\n"
-		//	"out vec3 pos;\n"
-
-		//	"void main() {\n"
-		//	"    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
-		//	"    gl_Position = P * vpoint_mv;\n"
-		//	"    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
-		//	"    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
-		//	"    view_dir = -vpoint_mv.xyz;\n"
-		//	"	 pos = position;\n"
-		//	"}",
-
-		//	/* Fragment shader */
-		//	"#version 330\n"
-		//	"uniform vec3 intensity;\n"
-
-		//	"in vec3 fnormal;\n"
-		//	"in vec3 view_dir;\n"
-		//	"in vec3 light_dir;\n"
-		//	"in vec3 pos;\n"
-
-		//	"out vec4 color;\n"
-
-		//	"void main() {\n"
-		//	"    vec3 c = vec3(0.0);\n"
-		//	"    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
-		//	"    vec3 n = normalize(fnormal);\n"
-		//	"    vec3 v = normalize(view_dir);\n"
-		//	"    vec3 l = normalize(light_dir);\n"
-		//	"    float lambert = dot(n,l);\n"
-		//	"    if(lambert > 0.0) {\n"
-		//	"        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
-		//	"        vec3 v = normalize(view_dir);\n"
-		//	"        vec3 r = reflect(-l,n);\n"
-		//	"        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
-		//	"    }\n"
-		//	"    c *= vec3(0.23, 0.29, 0.4);\n"
-		//	"    if (intensity == vec3(0.0)) {\n"
-		//	"        c = intensity;\n"
-		//	"    }\n"
-		//	"	 int x = int(pos[0]);\n"
-		//	"	 int z = int(pos[2]);\n"
-		//	"	 if (pos[0] < 0) x = -x + 1;\n"
-		//	"	 if (pos[2] < 0) z = -z + 1;\n"
-		//	"	 if (x % 2 != z % 2) {\n"
-		//	"		 c = vec3(1.0) - c;\n"
-		//	"	 }\n"
-		//	"    color = vec4(c, 0.8);\n"
-		//	"}"
-		//);
+			"void main() {\n"
+			"    vec3 c = vec3(0.0);\n"
+			"    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
+			"    vec3 n = normalize(fnormal);\n"
+			"    vec3 v = normalize(view_dir);\n"
+			"    vec3 l = normalize(light_dir);\n"
+			"    float lambert = dot(n,l);\n"
+			"    if(lambert > 0.0) {\n"
+			"        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
+			"        vec3 v = normalize(view_dir);\n"
+			"        vec3 r = reflect(-l,n);\n"
+			"        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
+			"    }\n"
+			"    c *= fcolor;\n"
+			"    if (intensity == vec3(0.0)) {\n"
+			"        c = intensity;\n"
+			"    }\n"
+			"    color = vec4(c, 1.0);\n"
+			"}"
+		);
 
 		mFloorShader.init(
 		    "floor_shader",
@@ -595,57 +497,6 @@ public:
 		    "    color = vec4(c, 1.0);\n"
 		    "}"
 		);
-
-		//mFloorShader.init(
-		//	"floor_shader",
-
-		//	/* Vertex shader */
-		//	"#version 330\n"
-		//	"uniform mat4 MV;\n"
-		//	"uniform mat4 P;\n"
-
-		//	"in vec3 position;\n"
-		//	"in vec3 normal;\n"
-
-		//	"out vec3 fnormal;\n"
-		//	"out vec3 view_dir;\n"
-		//	"out vec3 light_dir;\n"
-		//	"out vec3 pos;\n"
-
-		//	"void main() {\n"
-		//	"    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
-		//	"    gl_Position = P * vpoint_mv;\n"
-		//	"    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
-		//	"    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
-		//	"    view_dir = -vpoint_mv.xyz;\n"
-		//	"	 pos = position;\n"
-		//	"}",
-
-		//	/* Fragment shader */
-		//	"#version 330\n"
-		//	"uniform vec3 intensity;\n"
-
-		//	"in vec3 fnormal;\n"
-		//	"in vec3 view_dir;\n"
-		//	"in vec3 light_dir;\n"
-		//	"in vec3 pos;\n"
-
-		//	"out vec4 color;\n"
-
-		//	"void main() {\n"
-		//	"    vec3 c = vec3(0.0);\n"
-		//	"    vec3 n = normalize(fnormal);\n"
-		//	"    vec3 v = normalize(view_dir);\n"
-		//	"    vec3 l = normalize(light_dir);\n"
-		//	"	 float x = pos[0];\n"
-		//	"	 float z = pos[2];\n"
-		//	"	 float tmp = (z - pow(x*x, 1.0/3.0));\n"
-		//	"	 float y = tmp*tmp + x*x - 1;\n"
-		//	"	 if (y < 0) c = vec3(1.0, 0.0, 0.0);\n"
-		//	"	 else c = vec3(1.0, 1.0, 1.0);\n"
-		//	"    color = vec4(c, 0.8);\n"
-		//	"}"
-		//);
 
         mSelectedVertexShader.init(
             "selected_vertex_shader",
@@ -760,6 +611,119 @@ public:
             "   EndPrimitive();\n"
             "}"
         );
+
+		//mPointExplosionShader.init(
+		//	"point_explosion_shader",
+
+		//	/* Vertex shader */
+		//	"#version 330\n"
+		//	"uniform mat4 MV;\n"
+		//	"uniform mat4 P;\n"
+
+		//	"in vec3 position;\n"
+		//	"in vec3 normal;\n"
+
+		//	"out vec3 fnormal;\n"
+		//	"out vec3 view_dir;\n"
+		//	"out vec3 light_dir;\n"
+
+		//	"void main() {\n"
+		//	"    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+		//	"    gl_Position = P * vpoint_mv;\n"
+		//	"    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+		//	"    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+		//	"    view_dir = -vpoint_mv.xyz;\n"
+		//	"}",
+
+		//	/* Fragment shader */
+		//	"#version 330\n"
+		//	"uniform vec3 intensity;\n"
+
+		//	"in vec3 fnormal;\n"
+		//	"in vec3 view_dir;\n"
+		//	"in vec3 light_dir;\n"
+
+		//	"out vec4 color;\n"
+
+		//	"void main() {\n"
+		//	"    vec3 c = vec3(0.0);\n"
+		//	"    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
+		//	"    vec3 n = normalize(fnormal);\n"
+		//	"    vec3 v = normalize(view_dir);\n"
+		//	"    vec3 l = normalize(light_dir);\n"
+		//	"    float lambert = dot(n,l);\n"
+		//	"    if(lambert > 0.0) {\n"
+		//	"        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
+		//	"        vec3 v = normalize(view_dir);\n"
+		//	"        vec3 r = reflect(-l,n);\n"
+		//	"        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
+		//	"    }\n"
+		//	"    c *= vec3(0.23, 0.29, 0.4);\n"
+		//	"    if (intensity == vec3(0.0)) {\n"
+		//	"        c = intensity;\n"
+		//	"    }\n"
+		//	"	 c = vec3(0.0, 0.1, 0.1);\n"	
+		//	"    color = vec4(c, 1.0);\n"
+		//	"}"
+		//);
+
+		mPointExplosionShader.init(
+			"a_simple_shader",
+
+			/* Vertex shader */
+			"#version 330\n"
+			"uniform mat4 MV;\n"
+			"uniform mat4 P;\n"
+
+			"in vec3 position;\n"
+			"in vec3 normal;\n"
+			"in vec3 color;\n"
+
+			"out vec3 fcolor;\n"
+			"out vec3 fnormal;\n"
+			"out vec3 view_dir;\n"
+			"out vec3 light_dir;\n"
+
+			"void main() {\n"
+			"    vec4 vpoint_mv = MV * vec4(position, 1.0);\n"
+			"    gl_Position = P * vpoint_mv;\n"
+			"    fcolor = color;\n"
+			"    fnormal = mat3(transpose(inverse(MV))) * normal;\n"
+			"    light_dir = vec3(0.0, 3.0, 3.0) - vpoint_mv.xyz;\n"
+			"    view_dir = -vpoint_mv.xyz;\n"
+			"}",
+
+			/* Fragment shader */
+			"#version 330\n"
+			"uniform vec3 intensity;\n"
+
+			"in vec3 fcolor;\n"
+			"in vec3 fnormal;\n"
+			"in vec3 view_dir;\n"
+			"in vec3 light_dir;\n"
+
+			"out vec4 color;\n"
+
+			"void main() {\n"
+			"    vec3 c = vec3(0.0);\n"
+			"    c += vec3(1.0)*vec3(0.18, 0.1, 0.1);\n"
+			"    vec3 n = normalize(fnormal);\n"
+			"    vec3 v = normalize(view_dir);\n"
+			"    vec3 l = normalize(light_dir);\n"
+			"    float lambert = dot(n,l);\n"
+			"    if(lambert > 0.0) {\n"
+			"        c += vec3(1.0)*vec3(0.9, 0.5, 0.5)*lambert;\n"
+			"        vec3 v = normalize(view_dir);\n"
+			"        vec3 r = reflect(-l,n);\n"
+			"        c += vec3(1.0)*vec3(0.8, 0.8, 0.8)*pow(max(dot(r,v), 0.0), 90.0);\n"
+			"    }\n"
+			"    c *= fcolor;\n"
+			"    if (intensity == vec3(0.0)) {\n"
+			"        c = intensity;\n"
+			"    }\n"
+			"    color = vec4(c, 1.0);\n"
+			"}"
+		);
     }
 
     ~Viewer() {
@@ -880,6 +844,18 @@ public:
             mFloorShader.setUniform("intensity", colors);
             mFloorShader.drawIndexed(GL_TRIANGLES, 0, m_numFloorFaces);
         }
+
+		if (m_showPointExplosion) {
+			mPointExplosionShader.bind();
+			if (m_sphereChanged) {
+				mFloorShader.uploadAttrib("position", m_pe_sphere.getSpherePointsGrid());
+				m_sphereChanged = false;
+			}
+			mPointExplosionShader.setUniform("MV", mv);
+			mPointExplosionShader.setUniform("P", p);
+			mPointExplosionShader.setUniform("intensity", colors);
+			mPointExplosionShader.drawIndexed(GL_TRIANGLES, 0, m_pe_sphere.getNumFace());
+		}
 
         if (true) {
             mSelectedVertexShader.bind();
@@ -1172,6 +1148,7 @@ private:
     nanogui::GLShader mFloorShader;
     nanogui::GLShader mSelectedVertexShader;
     nanogui::GLShader mSelectionQuadShader;
+	nanogui::GLShader mPointExplosionShader;
     nanogui::Window *window;
     nanogui::Arcball arcball;
 
@@ -1200,6 +1177,11 @@ private:
     bool m_isSelecting = false;
     Vector2i m_selectionStart, m_selectionEnd;
     std::vector<Index> m_selectedVertices;
+
+	// Point Explosion sphere
+	ProjDyn::DrawableSphere m_pe_sphere = ProjDyn::DrawableSphere(360, 0.01);
+	bool m_showPointExplosion = true;
+	bool m_sphereChanged = false;
 
     // Floor height and points
     MatrixXf m_floorPoints;

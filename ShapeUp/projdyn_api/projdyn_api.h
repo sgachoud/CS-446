@@ -234,6 +234,7 @@ public:
 			if (wasRunning) start();
 		});*/
 
+		//TextBox to set pointExplosion strength
 		TextBox*  t = new TextBox(pd_win);
 		t->setEditable(true);
 		t->setValue(ProjDyn::floatToString(m_simulator.getPointExplosion().getStrength()));
@@ -257,6 +258,7 @@ public:
 			stop();
 			p->setValue(val);
 			m_simulator.setPointExplosionCenter(p->getPostition());
+			m_viewer->movePESphereTo(p->getPostition());
 			if (wasRunning) start();
 			return true;
 		});
