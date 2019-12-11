@@ -15,6 +15,7 @@
 #include "projdyn_types.h"
 #include "projdyn_common.h"
 #include "projdyn_constraints.h"
+#include "point_explosion.h"
 
 #include <memory>
 #include <iostream>
@@ -38,6 +39,7 @@ namespace ProjDyn {
 			Updated vertex positions can then be extracted using getPositions().
 		*/
 		Simulator(Scalar time_step = 1. / 60.) :
+			m_pointExplosion(),
 			m_positions(0, 3),
 			m_initial_positions(0, 3),
 			m_triangles(0, 3),
@@ -147,7 +149,8 @@ namespace ProjDyn {
                 // Store old positions to later compute the velocities
                 m_old_positions = m_positions;
                 // Compute the momentum term, which will be fixed for all iterations
-                m_momentum = m_positions + m_time_step * m_velocities + m_time_step * m_time_step * m_ext_forces;
+				m_momentum = m_positions + m_time_step * m_velocities + m_time_step * m_time_step * m_ext_forces
+					+ m_time_step * m_pointExplosion.applyOn(m_positions);
                 m_positions = m_momentum;
             }
             else {
@@ -194,8 +197,11 @@ namespace ProjDyn {
 			//updates constraints
 #pragma omp parallel for
 			for (int j = 0; j < m_constraints.size(); j++) {
-				m_constraints[j]->update();
+				m_constraints[j]->update(m_positions);
 			}
+
+			//updates point explosion
+			m_pointExplosion.update(m_time_step);
 
             if (m_dynamicMode) {
                 // Lastly, update the velocities as finite differences between the old and new positions
@@ -236,6 +242,9 @@ namespace ProjDyn {
 		void resetPositions() {
 			m_positions = m_initial_positions;
 			m_velocities.setZero(m_positions.rows(), 3);
+            for (int j = 0; j < m_constraints.size(); j++) {
+                m_constraints[j]->reset();
+            }
 		}
 
 		const Triangles& getTriangles() {
@@ -256,6 +265,9 @@ namespace ProjDyn {
 			return m_initial_positions;
 		}
 
+		const PointExplosion& getPointExplosion() {
+			return m_pointExplosion;
+		}
 		// Returns the number of outer vertices.
 		// Note that the vertices with index 0, ..., numOuterVerts-1 are the vertices on
 		// the surface triangles of the mesh, while the rest are inner vertices.
@@ -328,6 +340,18 @@ namespace ProjDyn {
         void setDynamic(bool dynamic) {
             m_dynamicMode = dynamic;
         }
+
+		void detonatePointExplosion() {
+			m_pointExplosion.detonate();
+		}
+
+		void setPointExplosionStrength(Scalar value) {
+			m_pointExplosion.setStrength(value);
+		}
+
+		void setPointExplosionCenter(Vector3 newCenter) {
+			m_pointExplosion.setCenter(newCenter);
+		}
 
 		// Builds and factorizes the linear system.
 		// Needs to be re-run everytime the stiffness-factor or time-step changes,
@@ -442,6 +466,9 @@ namespace ProjDyn {
 
 
 	protected:
+		//independent objects
+		PointExplosion m_pointExplosion;
+
 		// Mesh faces, vertices and tetrahedrons
 		Positions m_positions, m_initial_positions;
 		Triangles m_triangles;
@@ -562,7 +589,7 @@ namespace ProjDyn {
 			m_mass_matrix.resize(m_num_verts, m_num_verts);
 			m_mass_matrix.setIdentity();
 			for (int i = 0; i < m_num_verts; i++) {
-				m_mass_matrix.coeffRef(i, i) = m_vertex_masses(i);
+				m_mass_matrix.coeffRef(i, i) =  std::max(m_vertex_masses(i), 0.0001);
 			}
 		}
 	};

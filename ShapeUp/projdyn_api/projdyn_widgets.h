@@ -11,6 +11,8 @@
 #include "projdyn_tetgen.h"
 #include <nanogui/slider.h>
 #include "viewer.h"
+#include <sstream>
+#include <iomanip>
 
 // A specialized constraint-weight slider widget, inheriting from the NanoGUI slider,
 // which highlights the associated constraint groups on a mouse-over-event, and
@@ -99,4 +101,64 @@ private:
     ProjDyn::Index m_numVerts;
     Eigen::RowVectorXi m_storedStatus;
     TextBox* m_textBox;
+};
+
+
+
+//Special TextBox that inherit from NanoGUI TextBox to manage 3D positions
+class PositionTextBox : public TextBox {
+#define RX_FLOAT (\\s*)?[-+]?\\d+(\\.\\d*)?(\\s*)?
+#define REGEX ^\\(RX_FLOAT,RX_FLOAT,RX_FLOAT\\)$
+#define TO_STR(X) #X
+#define STR(X) TO_STR(X)
+public:
+	PositionTextBox(Widget* parent, ProjDyn::Vector3 initPos = ProjDyn::Vector3(0,0,0), unsigned int precision = 3) 
+		: TextBox(parent)
+	{
+		setPrecision(precision);
+		setPosition(initPos);
+		setFormat(STR(REGEX));
+	}
+	
+	PositionTextBox(Widget* parent, unsigned int precision)
+		: PositionTextBox(parent, ProjDyn::Vector3(0, 0, 0), precision)
+	{}
+
+	ProjDyn::Vector3 getPostition() const{
+		std::stringstream ss;
+		ProjDyn::Vector3 pos;
+		for (char a : value())
+		{
+			switch (a)
+			{
+			case '(':
+			case ')':
+			case ' ':
+				break;
+			case ',':
+				ss << " ";
+				break;
+			default:
+				ss << a;
+				break;
+			}
+		}
+		ss >> pos(0) >> pos(1) >> pos(2);
+		return pos;
+	}
+
+	void setPosition(ProjDyn::Vector3 pos) {
+		std::stringstream ss;
+		ss << std::setprecision(m_precision)
+			<< "(" << pos(0) << ", " << pos(1) << ", " << pos(2) << ")";
+		setValue(ss.str());
+	}
+
+	void setPrecision(unsigned int precision = 3) {
+		m_precision = precision;
+		setPosition(getPostition());
+	}
+
+private:
+	unsigned int m_precision;
 };
