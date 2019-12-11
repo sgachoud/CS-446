@@ -114,6 +114,7 @@ public:
             m_simulator.addYWallsConstraints(10., 3.);
             m_simulator.addZWallsConstraints(10., 3.);
             m_viewer->setBoxLimits(m_simulator.getXWallsLimit(), m_simulator.getYWallsLimit(), m_simulator.getZWallsLimit());
+            m_viewer->boxProcess();
             m_viewer->showBox(true);
             updateConstraintsGUI();
             if (was_active) {

@@ -313,13 +313,43 @@
           mFloorShader.uploadAttrib("position", m_floorPoints);
           mFloorShader.uploadAttrib("normal", floor_normals);
 
-          // Initialize walls geom and shader
+  		    // Initialize Point Explosion shader
+    		  MatrixXf sphere_v_color(3, m_pe_sphere.getNumFace());
+    		  sphere_v_color.setZero();
+    		  for (int i = 0; i < m_pe_sphere.getNumFace(); i++) sphere_v_color.col(i) = Vector3f(0.98, 0.59, 0.04);
+    		  mPointExplosionShader.bind();
+    		  mPointExplosionShader.uploadIndices(m_pe_sphere.getSphereIndicesGrid());
+    		  mPointExplosionShader.uploadAttrib("position", m_pe_sphere.getSpherePointsGrid());
+    		  mPointExplosionShader.uploadAttrib("normal", m_pe_sphere.getSphereNormalsGrid());
+    		  mPointExplosionShader.uploadAttrib("color", sphere_v_color);
+
+          MatrixXf selected(3, n_vertices);
+          selected.setZero();
+          m_updated_vertex_selections.setZero(3, n_vertices);
+          m_current_vertex_status.setZero(1, n_vertices);
+          mSelectedVertexShader.bind();
+          mSelectedVertexShader.uploadIndices(indices);
+          mSelectedVertexShader.uploadAttrib("position", mesh_points);
+          mSelectedVertexShader.uploadAttrib("selected", selected);
+
+          MatrixXu simple_indices(3, 1);
+          simple_indices << 0, 1, 2;
+          MatrixXf zeros(3, 3);
+          zeros.setZero();
+          mSelectionQuadShader.bind();
+          mSelectionQuadShader.uploadIndices(simple_indices);
+          mSelectionQuadShader.uploadAttrib("position", zeros);
+      }
+
+      void boxProcess() {
+        // Initialize box geom and shader
           int face_grid_length = 10;
           int num_face_points = face_grid_length * face_grid_length;
           int num_face_faces = (face_grid_length - 1) * (face_grid_length - 1) * 2;
           int num_box_faces = num_face_faces * 6;
           m_boxPoints.resize(3, 6 * num_face_points);
           MatrixXu box_indices(3, num_box_faces);
+
           float x_wall_cell_length = (float)(2 * m_xWallsLimit) / (float)face_grid_length;
           float y_wall_cell_length = (float)(2 * m_yWallsLimit) / (float)face_grid_length;
           float z_wall_cell_length = (float)(2 * m_zWallsLimit) / (float)face_grid_length;
@@ -510,33 +540,6 @@
           mBoxShader.bind();
           mBoxShader.uploadIndices(box_indices);
           mBoxShader.uploadAttrib("position", m_boxPoints);
-
-  		    // Initialize Point Explosion shader
-    		  MatrixXf sphere_v_color(3, m_pe_sphere.getNumFace());
-    		  sphere_v_color.setZero();
-    		  for (int i = 0; i < m_pe_sphere.getNumFace(); i++) sphere_v_color.col(i) = Vector3f(0.98, 0.59, 0.04);
-    		  mPointExplosionShader.bind();
-    		  mPointExplosionShader.uploadIndices(m_pe_sphere.getSphereIndicesGrid());
-    		  mPointExplosionShader.uploadAttrib("position", m_pe_sphere.getSpherePointsGrid());
-    		  mPointExplosionShader.uploadAttrib("normal", m_pe_sphere.getSphereNormalsGrid());
-    		  mPointExplosionShader.uploadAttrib("color", sphere_v_color);
-
-          MatrixXf selected(3, n_vertices);
-          selected.setZero();
-          m_updated_vertex_selections.setZero(3, n_vertices);
-          m_current_vertex_status.setZero(1, n_vertices);
-          mSelectedVertexShader.bind();
-          mSelectedVertexShader.uploadIndices(indices);
-          mSelectedVertexShader.uploadAttrib("position", mesh_points);
-          mSelectedVertexShader.uploadAttrib("selected", selected);
-
-          MatrixXu simple_indices(3, 1);
-          simple_indices << 0, 1, 2;
-          MatrixXf zeros(3, 3);
-          zeros.setZero();
-          mSelectionQuadShader.bind();
-          mSelectionQuadShader.uploadIndices(simple_indices);
-          mSelectionQuadShader.uploadAttrib("position", zeros);
       }
 
       void initGUI() {
