@@ -107,7 +107,7 @@ private:
 
 //Special TextBox that inherit from NanoGUI TextBox to manage 3D positions
 class PositionTextBox : public TextBox {
-#define RX_FLOAT [-+]?(\\s*)?\\d*(\\.\\d*)?(\\s*)?
+#define RX_FLOAT (\\s*)?[-+]?\\d+(\\.\\d*)?(\\s*)?
 #define REGEX ^\\(RX_FLOAT,RX_FLOAT,RX_FLOAT\\)$
 #define TO_STR(X) #X
 #define STR(X) TO_STR(X)
@@ -150,7 +150,7 @@ public:
 	void setPosition(ProjDyn::Vector3 pos) {
 		std::stringstream ss;
 		ss << std::setprecision(m_precision)
-			<< "(" << pos(0) << " ," << pos(1) << " ," << pos(2) << ")";
+			<< "(" << pos(0) << ", " << pos(1) << ", " << pos(2) << ")";
 		setValue(ss.str());
 	}
 

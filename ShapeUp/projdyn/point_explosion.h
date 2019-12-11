@@ -79,10 +79,11 @@ namespace ProjDyn {
 		}
 
 		size_t getNumFace() const {
-			return (m_precision - 1) * (m_precision - 1);
+			return (m_precision - 1) * (m_precision - 1) * 2;
 		}
 
 		void translate(Vector3 translation) {
+			m_center += translation;
 			translateSphere(m_unifSpherePoints, translation);
 		}
 
@@ -119,7 +120,7 @@ namespace ProjDyn {
 			MatrixXu& unifSphereIndices, size_t size) {
 			unifSpherePoints = MatrixXd(3, size * size);
 			unifSphereNormals = MatrixXd(3, size * size);
-			unifSphereIndices = MatrixXu(3, size * (size - 1) * 2);
+			unifSphereIndices = MatrixXu(3, (size - 1) * (size - 1) * 2);
 			for (Index x(0); x < size; x++) {
 				for (Index y(0); y < size; y++) {
 					Index index(x * size + y);
@@ -132,7 +133,7 @@ namespace ProjDyn {
 			for (Index x(0); x < size - 1; x++) {
 				for (Index y(0); y < size - 1; y++) {
 					Index index(x * size + y);
-					Index cell_ind(2 * index);
+					Index cell_ind(2 * (index - x));
 					unifSphereIndices(0, cell_ind) = index;
 					unifSphereIndices(1, cell_ind) = (x + 1) * size + y;
 					unifSphereIndices(2, cell_ind) = index + 1;
@@ -141,47 +142,12 @@ namespace ProjDyn {
 					unifSphereIndices(2, cell_ind + 1) = index + 1;
 				}
 			}
-
-			//fixes boundary
-			/*for (Index x(0); x < size - 1; x++) {
-				Index y(size - 1);
-				Index cell_ind(2 * (x * size + y));
-				unifSphereIndices(0, cell_ind) = x * size + y;
-				unifSphereIndices(1, cell_ind) = (x + 1) * size + y;
-				unifSphereIndices(2, cell_ind) = x * size;
-				unifSphereIndices(0, cell_ind + 1) = (x + 1) * size + y;
-				unifSphereIndices(1, cell_ind + 1) = (x + 1) * size;
-				unifSphereIndices(2, cell_ind + 1) = x * size;
-			}*/
-			/*for (Index y(0); y < size - 1; y++) {
-				Index x(size - 1);
-				Index cell_ind(2 * (x * size + y));
-				unifSphereIndices(0, cell_ind) = x * size + y;
-				unifSphereIndices(1, cell_ind) = y;
-				unifSphereIndices(2, cell_ind) = x * size + y + 1;
-				unifSphereIndices(0, cell_ind + 1) = y;
-				unifSphereIndices(1, cell_ind + 1) = y + 1;
-				unifSphereIndices(2, cell_ind + 1) = x * size + y + 1;
-			}*/
-			/*
-			Index cell_ind(2 * (size * size - 1));
-			unifSphereIndices(0, cell_ind) = size * size - 1;
-			unifSphereIndices(1, cell_ind) = size - 1;
-			unifSphereIndices(2, cell_ind) = (size - 1) * size;
-			unifSphereIndices(0, cell_ind + 1) = size - 1;
-			unifSphereIndices(1, cell_ind + 1) = 0;
-			unifSphereIndices(2, cell_ind + 1) = (size - 1) * size;
-			*/
 		}
 
-		static Vector3 squareToUniformSphere(double x, double y) {
-			float z = 2 * x - 1;
-			float r = sqrt(1 - z * z);
+		static Vector3 squareToUniformSphere(double x, double y) {			
 			float theta = y * 2 * M_PI;
-			return Vector3(r * cos(theta), r * sin(theta), z);
-			/*float theta = x * 2 * M_PI;
-			float phi = y * M_PI;
-			return Vector3(sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi));*/
+			float phi = x * M_PI;
+			return Vector3(sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi));
 		}
 
 		static void translateSphere(MatrixXd& unifSpherePoints, Vector3 translation) {
