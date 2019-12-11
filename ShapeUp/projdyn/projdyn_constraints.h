@@ -12,6 +12,7 @@
 
 #include "projdyn_types.h"
 #include "projdyn_common.h"
+#include <limits>
 
 // Vertices cannot be assigned less weight then this:
 constexpr double PROJDYN_MIN_WEIGHT = 1e-6;
@@ -254,20 +255,49 @@ namespace ProjDyn {
 	*/
 	class WallConstraint : public Constraint {
 	public:
-		WallConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
+		WallConstraint(Index ind, Scalar weight, unsigned int normalAxe, 
+			Scalar firstPos = -std::numeric_limits<Scalar>::infinity(), 
+			Scalar secondPos = std::numeric_limits<Scalar>::infinity(), 
+			Scalar forceFactor = 1.)
 			:
 			Constraint({ ind }, weight),
-			m_wall_distance(wallDistance),
+			m_normal_axe(normalAxe),
+			m_first_pos(firstPos),
+			m_second_pos(secondPos),
 			m_vert_ind(ind),
 			m_force_factor(forceFactor)
 		{
+			if (m_first_pos > m_second_pos) 
+				std::swap(m_first_pos, m_second_pos);
+
+			if (m_normal_axe > 2)
+				m_normal_axe = 2;
 		}
 
 		virtual Index getNumConstraintRows() override { return 1; }
 
-		/** Test for collision, i.e. if point is behind or toutching the wall
+		virtual void project(const Positions& positions, Positions& projection) override {
+			// Check for correct size of the projection auxiliary variable;
+			assert(projection.rows() > m_constraint_id);
+			// Set corrected positions for vertices that are below the floor height
+			projection.row(m_constraint_id) = positions.row(m_vert_ind);
+
+			if (positions(m_vert_ind, m_normal_axe) > m_second_pos) {
+				projection(m_constraint_id, m_normal_axe) =
+					(1 + m_force_factor) * m_second_pos - m_force_factor * positions(m_vert_ind, m_normal_axe);
+			}
+			else if (positions(m_vert_ind, m_normal_axe) < m_first_pos) {
+				projection(m_constraint_id, m_normal_axe) =
+					(1 + m_force_factor) * m_first_pos - m_force_factor * positions(m_vert_ind, m_normal_axe);
+			}
+
+		}
+
+		/** Test for collision, i.e. if point is behind or touching the wall
 		*/
-		virtual bool isColliding(Vector3 point) const = 0;
+		virtual bool isColliding(Vector3 point) const {
+			return point(m_normal_axe) >= m_second_pos || point(m_normal_axe) <= m_first_pos;
+		}
 
 		/** Store in i and j the directions of the friction (x:0,y:1,z:2)
 		*/
@@ -280,8 +310,10 @@ namespace ProjDyn {
 			return triplets;
 		}
 
-	protected:
-		Scalar m_wall_distance;
+	private:
+		unsigned int m_normal_axe;
+		Scalar m_first_pos;
+		Scalar m_second_pos;
 		Index m_vert_ind;
 		Scalar m_force_factor;
 	};
@@ -293,27 +325,13 @@ namespace ProjDyn {
     public:
         FloorConstraint(Index ind, Scalar weight, Scalar floorHeight, Scalar forceFactor = 1.)
             :
-			WallConstraint(ind, weight, floorHeight, forceFactor)
+			WallConstraint(ind, weight, 1, floorHeight, std::numeric_limits<Scalar>::infinity(), forceFactor)
         {
-        }
-
-        virtual void project(const Positions& positions, Positions& projection) override {
-            // Check for correct size of the projection auxiliary variable;
-            assert(projection.rows() > m_constraint_id);
-            // Set corrected positions for vertices that are below the floor height
-            projection.row(m_constraint_id) = positions.row(m_vert_ind);
-            if (positions(m_vert_ind, 1) < m_wall_distance) {
-                projection(m_constraint_id, 1) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 1);
-            }
         }
 
         virtual ConstraintPtr copy() {
             return std::make_shared<FloorConstraint>(*this);
         }
-
-		virtual bool isColliding(Vector3 point) const override{
-			return point(1) <= m_wall_distance;
-		}
 
 		virtual void frictionAxes(Index& i, Index& j) const override {
 			i = 0; j = 2;
@@ -327,69 +345,38 @@ namespace ProjDyn {
     public:
         XWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
             :
-			WallConstraint(ind, weight, wallDistance, forceFactor)
+			WallConstraint(ind, weight, 0, -wallDistance, wallDistance, forceFactor)
         {
-        }
-
-        virtual void project(const Positions& positions, Positions& projection) override {
-            // Check for correct size of the projection auxiliary variable;
-            assert(projection.rows() > m_constraint_id);
-            // Set corrected positions for vertices that are below the floor height
-            projection.row(m_constraint_id) = positions.row(m_vert_ind);
-            if (positions(m_vert_ind, 0) > m_wall_distance) {
-                projection(m_constraint_id, 0) = (1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 0);
-            } else if (positions(m_vert_ind, 0) < -m_wall_distance) {
-                projection(m_constraint_id, 0) = -(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 0);
-            }
         }
 
         virtual ConstraintPtr copy() {
             return std::make_shared<XWallsConstraint>(*this);
         }
 
-		virtual bool isColliding(Vector3 point) const override {
-			return point(0) >= m_wall_distance || point(0) <= -m_wall_distance;
-		}
-
 		virtual void frictionAxes(Index& i, Index& j) const override {
 			i = 1; j = 2;
 		}
     };
 
-    /**
-        Constraint that keeps the y position of a vertex between wallDistance and -wallDistance
-    */
-    class YWallsConstraint : public WallConstraint {
-    public:
-        YWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
-            :
-			WallConstraint(ind, weight, wallDistance, forceFactor)
-        {
-        }
+	/**
+		Constraint that keeps the y position of a vertex between wallDistance and -wallDistance
+	*/
+	class YWallsConstraint : public WallConstraint {
+	public:
+		YWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
+			:
+			WallConstraint(ind, weight, 1, -wallDistance, wallDistance, forceFactor)
+		{
+		}
 
-        virtual void project(const Positions& positions, Positions& projection) override {
-            // Check for correct size of the projection auxiliary variable;
-            assert(projection.rows() > m_constraint_id);
-            // Set corrected positions for vertices that are below the floor height
-            projection.row(m_constraint_id) = positions.row(m_vert_ind);
-            if (positions(m_vert_ind, 1) > m_wall_distance) {
-                projection(m_constraint_id, 1) = m_wall_distance;//(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
-            } else if (positions(m_vert_ind, 1) < -m_wall_distance) {
-                projection(m_constraint_id, 1) = m_wall_distance;//-(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
-            }
-        }
-        virtual ConstraintPtr copy() {
-            return std::make_shared<ZWallsConstraint>(*this);
-        }
-
-		virtual bool isColliding(Vector3 point) const override {
-			return point(2) >= m_wall_distance || point(2) <= -m_wall_distance;
+		virtual ConstraintPtr copy() {
+			return std::make_shared<YWallsConstraint>(*this);
 		}
 
 		virtual void frictionAxes(Index& i, Index& j) const override {
-			i = 0; j = 1;
+			i = 0; j = 2;
 		}
-    };
+	};
 
     /**
         Constraint that keeps the z position of a vertex between wallDistance and -wallDistance
@@ -398,28 +385,13 @@ namespace ProjDyn {
     public:
         ZWallsConstraint(Index ind, Scalar weight, Scalar wallDistance, Scalar forceFactor = 1.)
             :
-			WallConstraint(ind, weight, wallDistance, forceFactor)
+			WallConstraint(ind, weight, 2, -wallDistance, wallDistance, forceFactor)
         {
         }
 
-        virtual void project(const Positions& positions, Positions& projection) override {
-            // Check for correct size of the projection auxiliary variable;
-            assert(projection.rows() > m_constraint_id);
-            // Set corrected positions for vertices that are below the floor height
-            projection.row(m_constraint_id) = positions.row(m_vert_ind);
-            if (positions(m_vert_ind, 2) > m_wall_distance) {
-                projection(m_constraint_id, 2) = m_wall_distance;//(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
-            } else if (positions(m_vert_ind, 2) < -m_wall_distance) {
-                projection(m_constraint_id, 2) = m_wall_distance;//-(1 + m_force_factor) * m_wall_distance - m_force_factor * positions(m_vert_ind, 2);
-            }
-        }
         virtual ConstraintPtr copy() {
             return std::make_shared<ZWallsConstraint>(*this);
         }
-
-		virtual bool isColliding(Vector3 point) const override {
-			return point(2) >= m_wall_distance || point(2) <= -m_wall_distance;
-		}
 
 		virtual void frictionAxes(Index& i, Index& j) const override {
 			i = 0; j = 1;
@@ -911,6 +883,51 @@ namespace ProjDyn {
                 triplets.push_back(Triplet(currentRow + index - 1, m_vertex_indices[0], -1));
                 triplets.push_back(Triplet(currentRow + index - 1, m_vertex_indices[index], 1));
             }
+
+            return triplets;
+        }
+    };
+
+    class PlasicityConstraint : public Constraint {
+    public:
+        PlasicityConstraint(const std::vector<Index>& edge_vertices, Scalar weight,
+            const Positions& positions)
+            :
+            Constraint(edge_vertices, weight)
+        {
+            // Make sure there are at most two vertices in the edge
+            assert(m_vertex_indices.size() == 2);
+            // Compute rest edge length
+            m_rest_length = (positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0])).norm();
+        }
+
+        virtual void project(const Positions& positions, Positions& projection) override {
+            // Check for correct size of the projection auxiliary variable;
+            assert(projection.rows() > m_constraint_id);
+            // Compute the current edge
+            projection.row(m_constraint_id) = positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0]);
+            //compute new rest_length
+            Scalar tmp_rest_length = projection.row(m_constraint_id).norm();
+            if (tmp_rest_length - m_rest_length > 0.025) {
+                m_rest_length += (tmp_rest_length - m_rest_length) / 3;
+            }
+            // Rescale to rest length
+            projection.row(m_constraint_id) /= projection.row(m_constraint_id).norm();
+            projection.row(m_constraint_id) *= m_rest_length;
+        }
+
+        virtual Index getNumConstraintRows() override { return 1; };
+
+        virtual ConstraintPtr copy() {
+            return std::make_shared<PlasicityConstraint>(*this);
+        }
+    protected:
+        Scalar m_rest_length = 0;
+
+        virtual std::vector<Triplet> getTriplets(Index currentRow) override {
+            std::vector<Triplet> triplets;
+            triplets.push_back(Triplet(currentRow, m_vertex_indices[0], -1));
+            triplets.push_back(Triplet(currentRow, m_vertex_indices[1], 1));
 
             return triplets;
         }

@@ -217,6 +217,10 @@ namespace ProjDyn {
 			// Set the floor below the mesh at a distance corresponding to twice the height
 			// of the bounding box
 			m_floorHeight = m_positions.col(1).minCoeff() - (m_positions.col(1).maxCoeff() - m_positions.col(1).minCoeff()) * 2;
+			
+			m_xWallsLimit = m_positions.col(0).minCoeff() - (m_positions.col(0).maxCoeff() - m_positions.col(0).minCoeff()) * 2;
+			m_yWallsLimit = m_floorHeight;
+			m_zWallsLimit = m_positions.col(2).minCoeff() - (m_positions.col(2).maxCoeff() - m_positions.col(2).minCoeff()) * 2;
 			meshChanged();
 		}
 
@@ -386,6 +390,39 @@ namespace ProjDyn {
 			m_system_init = false;
 		}
 
+		// Add X walls contraints to all points:
+		void addXWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
+			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
+			std::vector<ConstraintPtr> wallCons;
+			for (Index v = 0; v < m_num_verts; v++) {
+				wallCons.push_back(std::make_shared<XWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
+			}
+			addConstraints(std::make_shared<ConstraintGroup>("X Walls", wallCons, 1));
+			m_system_init = false;
+		}
+
+		// Add Y walls contraints to all points:
+		void addYWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
+			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
+			std::vector<ConstraintPtr> wallCons;
+			for (Index v = 0; v < m_num_verts; v++) {
+				wallCons.push_back(std::make_shared<YWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
+			}
+			addConstraints(std::make_shared<ConstraintGroup>("Y Walls", wallCons, 1));
+			m_system_init = false;
+		}
+
+		// Add Z walls contraints to all points:
+		void addZWallsConstraints(Scalar weightMultiplier, Scalar wallDistance, Scalar forceFactor = 1.) {
+			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
+			std::vector<ConstraintPtr> wallCons;
+			for (Index v = 0; v < m_num_verts; v++) {
+				wallCons.push_back(std::make_shared<ZWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, wallDistance, forceFactor));
+			}
+			addConstraints(std::make_shared<ConstraintGroup>("Z Walls", wallCons, 1));
+			m_system_init = false;
+		}
+
         Scalar getFloorHeight() {
             return m_floorHeight;
         }
@@ -393,9 +430,11 @@ namespace ProjDyn {
 		Scalar getXWallsLimit() {
             return m_xWallsLimit;
         }
+
 		Scalar getYWallsLimit() {
             return m_yWallsLimit;
         }
+		
 		Scalar getZWallsLimit() {
             return m_zWallsLimit;
         }
