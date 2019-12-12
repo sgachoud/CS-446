@@ -15,10 +15,8 @@ namespace ProjDyn {
 	class PointExplosion
 	{
 	public:
-		PointExplosion(Vector3 center = Vector3(0,0,0), Scalar strength = 1.0,
-			Scalar speed = 0.0)
-			: m_center(center), m_strength(strength),
-			m_detonated(false)
+		PointExplosion(Vector3 center = Vector3(0,0,0), Scalar strength = 1.0)
+			: m_center(center), m_strength(strength), m_detonated(false)
 		{}
 
 		~PointExplosion()
