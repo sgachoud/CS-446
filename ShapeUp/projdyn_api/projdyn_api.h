@@ -218,9 +218,11 @@ public:
 //            update(true);
 		});
 
-		new Label(pd_win, "Point Explosion", "sans-bold");
+		PopupButton* popupPEBtn = new PopupButton(pd_win, "Point Explosion", ENTYPO_ICON_LINK);
+		Popup* popupPE = popupPEBtn->popup();
+		popupPE->setLayout(new GroupLayout());
 
-		b = new Button(pd_win, "Detonate");
+		b = new Button(popupPE, "Detonate");
 		b->setCallback([this]() {
 			bool was_active = m_simActive;
 			stop();
@@ -231,18 +233,10 @@ public:
 		});
 
 		//Manage explosion strength
-		new Label(pd_win, "Explosion Strength", "sans-bold");
-		/*Slider* s = new Slider(pd_win);
-		s->setRange({ 0, 100 });
-		s->setFinalCallback([this,s](float v) {
-			bool wasRunning = m_simActive;
-			stop();
-			m_simulator.setPointExplosionStrength(s->value());
-			if (wasRunning) start();
-		});*/
+		new Label(popupPE, "Explosion Strength", "sans-bold");
 
 		//TextBox to set pointExplosion strength
-		TextBox*  t = new TextBox(pd_win);
+		TextBox*  t = new TextBox(popupPE);
 		t->setEditable(true);
 		t->setValue(ProjDyn::floatToString(m_simulator.getPointExplosion().getStrength()));
 		t->setCallback([this, t](const std::string& val) -> bool {
@@ -256,9 +250,9 @@ public:
 		});
 
 
-		new Label(pd_win, "Explosion Center", "sans-bold");
+		new Label(popupPE, "Explosion Center", "sans-bold");
 		//Manage Explosion center
-		PositionTextBox* p = new PositionTextBox(pd_win, m_simulator.getPointExplosion().getCenter());
+		PositionTextBox* p = new PositionTextBox(popupPE, m_simulator.getPointExplosion().getCenter());
 		p->setEditable(true);
 		p->setCallback([this,p](const std::string& val) -> bool {
 			bool wasRunning = m_simActive;
