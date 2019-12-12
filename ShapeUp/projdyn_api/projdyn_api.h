@@ -20,6 +20,7 @@ class ProjDynAPI {
 public:
     // Some default values
     const bool UPDATE_NORMALS = true;
+    const bool PLASTICITY = true;
     const int  NUM_ITS_INITIAL = 10;
     const int  FPS = 60;
     const bool DYNAMIC_MODE = true;
@@ -182,6 +183,12 @@ public:
                 start();
             }
             popupBtn->setPushed(false);
+        });
+        
+        CheckBox* plasticityCB = new CheckBox(pd_win, "Plasticity");
+        plasticityCB->setChecked(PLASTICITY);
+        plasticityCB->setCallback([this](bool state) {
+            m_simulator.setPlasticity(state);
         });
 
         Button* clear_b = new Button(pd_win, "Clear constraints");

@@ -56,7 +56,8 @@ namespace ProjDyn {
 			m_constraint_mat_t(0, 0),
 			m_laplacian(0, 0),
 			m_system_init(false),
-			m_lhs_updated(false)
+			m_lhs_updated(false),
+            m_plasticity(true)
 		{}
 
         // Based on the current vertices, triangles, tetrahedrons and constraints,
@@ -197,7 +198,7 @@ namespace ProjDyn {
 			//updates constraints
 #pragma omp parallel for
 			for (int j = 0; j < m_constraints.size(); j++) {
-				m_constraints[j]->update(m_positions);
+				m_constraints[j]->update(m_positions, m_plasticity);
 			}
 
 			//updates point explosion
@@ -348,6 +349,10 @@ namespace ProjDyn {
 		void setPointExplosionCenter(Vector3 newCenter) {
 			m_pointExplosion.setCenter(newCenter);
 		}
+        
+        void setPlasticity(bool state){
+            m_plasticity = state;
+        }
 
 		// Builds and factorizes the linear system.
 		// Needs to be re-run everytime the stiffness-factor or time-step changes,
@@ -420,6 +425,8 @@ namespace ProjDyn {
 		//independent objects
 		PointExplosion m_pointExplosion;
 
+        bool m_plasticity;
+        
 		// Mesh faces, vertices and tetrahedrons
 		Positions m_positions, m_initial_positions;
 		Triangles m_triangles;
