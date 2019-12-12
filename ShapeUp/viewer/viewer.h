@@ -343,63 +343,33 @@
 
       void boxProcess() {
         // Initialize box geom and shader
-          int face_grid_length = 10;
+          int face_grid_length = 5;
           int num_face_points = face_grid_length * face_grid_length;
           int num_face_faces = (face_grid_length - 1) * (face_grid_length - 1) * 2;
           int num_box_faces = num_face_faces * 6;
           m_boxPoints.resize(3, 6 * num_face_points);
           MatrixXu box_indices(3, num_box_faces);
 
-          float x_wall_cell_length = (float)(2 * m_xWallsLimit) / (float)face_grid_length;
-          float y_wall_cell_length = (float)(2 * m_yWallsLimit) / (float)face_grid_length;
-          float z_wall_cell_length = (float)(2 * m_zWallsLimit) / (float)face_grid_length;
+          float x_wall_cell_length = (float)(2 * m_xWallsLimit) / (float)(face_grid_length - 1);
+          float y_wall_cell_length = (float)(2 * m_yWallsLimit) / (float)(face_grid_length - 1);
+          float z_wall_cell_length = (float)(2 * m_zWallsLimit) / (float)(face_grid_length - 1);
 
           // Initialize x walls
           for (int y = 0; y < face_grid_length; y++)
           {
               for (int z = 0; z < face_grid_length; z++)
               {
-                  // Intialize positive wall points
-                  int col1 = y * face_grid_length + z;
-                  m_boxPoints(0, col1) = m_xWallsLimit;
-                  m_boxPoints(1, col1) = -m_yWallsLimit + y_wall_cell_length * y;
-                  m_boxPoints(2, col1) = -m_zWallsLimit + z_wall_cell_length * z;
+                  // Initialize positive wall points
+                  int col = y * face_grid_length + z;
+                  m_boxPoints(0, col) = m_xWallsLimit;
+                  m_boxPoints(1, col) = -m_yWallsLimit + y_wall_cell_length * y;
+                  m_boxPoints(2, col) = -m_zWallsLimit + z_wall_cell_length * z;
 
-                  // Intialize negative wall points
-                  int col2 = y * face_grid_length + z + num_face_points;
-                  m_boxPoints(0, col2) = -m_xWallsLimit;
-                  m_boxPoints(1, col2) = -m_yWallsLimit + y_wall_cell_length * y;
-                  m_boxPoints(2, col2) = -m_zWallsLimit + z_wall_cell_length * z;
-              }
-          }
-
-          for (int y = 0; y < face_grid_length - 1; y++)
-          {
-              for (int z = 0; z < face_grid_length - 1; z++)
-              {
-                  // Intialize positive wall faces
-                  int cell_ind1 = (y * (face_grid_length - 1) + z) * 2;
-                  int offset1 = y * face_grid_length + z;
-
-                  box_indices(0, cell_ind1) = y * face_grid_length + z + offset1;
-                  box_indices(1, cell_ind1) = (y + 1) * face_grid_length + z + offset1;
-                  box_indices(2, cell_ind1) = y * face_grid_length + (z + 1) + offset1;
-
-                  box_indices(0, cell_ind1 + 1) = (y + 1) * face_grid_length + z + offset1;
-                  box_indices(1, cell_ind1 + 1) = (y + 1) * face_grid_length + (z + 1) + offset1;
-                  box_indices(2, cell_ind1 + 1) = y * face_grid_length + (z + 1) + offset1;
-
-                  // Intialize negative wall faces
-                  int cell_ind2 = (y * (face_grid_length - 1) + z) * 2 + num_face_faces;
-                  int offset2 = y * face_grid_length + z + num_face_points;
-
-                  box_indices(0, cell_ind2) = y * face_grid_length + z + offset2;
-                  box_indices(1, cell_ind2) = (y + 1) * face_grid_length + z + offset2;
-                  box_indices(2, cell_ind2) = y * face_grid_length + (z + 1) + offset2;
-
-                  box_indices(0, cell_ind2 + 1) = (y + 1) * face_grid_length + z + offset2;
-                  box_indices(1, cell_ind2 + 1) = (y + 1) * face_grid_length + (z + 1) + offset2;
-                  box_indices(2, cell_ind2 + 1) = y * face_grid_length + (z + 1) + offset2;
+                  // Initialize negative wall points
+                  col += num_face_points;
+                  m_boxPoints(0, col) = -m_xWallsLimit;
+                  m_boxPoints(1, col) = -m_yWallsLimit + y_wall_cell_length * y;
+                  m_boxPoints(2, col) = -m_zWallsLimit + z_wall_cell_length * z;
               }
           }
 
@@ -408,47 +378,17 @@
           {
               for (int z = 0; z < face_grid_length; z++)
               {
-                  // Intialize positive wall points
-                  int col1 = x * face_grid_length + z + 2 * num_face_points;
-                  m_boxPoints(0, col1) = -m_xWallsLimit + x_wall_cell_length * x;
-                  m_boxPoints(1, col1) = m_yWallsLimit;
-                  m_boxPoints(2, col1) = -m_zWallsLimit + z_wall_cell_length * z;
+                  // Initialize positive wall points
+                  int col = x * face_grid_length + z + 2 * num_face_points;
+                  m_boxPoints(0, col) = -m_xWallsLimit + x_wall_cell_length * x;
+                  m_boxPoints(1, col) = m_yWallsLimit;
+                  m_boxPoints(2, col) = -m_zWallsLimit + z_wall_cell_length * z;
 
-                  // Intialize negative wall points
-                  int col2 = x * face_grid_length + z + 3 * num_face_points;
-                  m_boxPoints(0, col2) = -m_xWallsLimit + x_wall_cell_length * x;
-                  m_boxPoints(1, col2) = m_yWallsLimit;
-                  m_boxPoints(2, col2) = -m_zWallsLimit + z_wall_cell_length * z;
-              }
-          }
-
-          for (int x = 0; x < face_grid_length - 1; x++)
-          {
-              for (int z = 0; z < face_grid_length - 1; z++)
-              {
-                  // Intialize positive wall faces
-                  int cell_ind1 = (x * (face_grid_length - 1) + z) * 2 + 2 * num_face_faces;
-                  int offset1 = x * face_grid_length + z + 2 * num_face_points;
-
-                  box_indices(0, cell_ind1) = x * face_grid_length + z + offset1;
-                  box_indices(1, cell_ind1) = (x + 1) * face_grid_length + z + offset1;
-                  box_indices(2, cell_ind1) = x * face_grid_length + (z + 1) + offset1;
-
-                  box_indices(0, cell_ind1 + 1) = (x + 1) * face_grid_length + z + offset1;
-                  box_indices(1, cell_ind1 + 1) = (x + 1) * face_grid_length + (z + 1) + offset1;
-                  box_indices(2, cell_ind1 + 1) = x * face_grid_length + (z + 1) + offset1;
-
-                  // Intialize negative wall faces
-                  int cell_ind2 = (x * (face_grid_length - 1) + z) * 2 + 3 * num_face_faces;
-                  int offset2 = x * face_grid_length + z + 3 * num_face_points;
-
-                  box_indices(0, cell_ind2) = x * face_grid_length + z + offset2;
-                  box_indices(1, cell_ind2) = (x + 1) * face_grid_length + z + offset2;
-                  box_indices(2, cell_ind2) = x * face_grid_length + (z + 1) + offset2;
-
-                  box_indices(0, cell_ind2 + 1) = (x + 1) * face_grid_length + z + offset2;
-                  box_indices(1, cell_ind2 + 1) = (x + 1) * face_grid_length + (z + 1) + offset2;
-                  box_indices(2, cell_ind2 + 1) = x * face_grid_length + (z + 1) + offset2;
+                  // Initialize negative wall points
+                  col += num_face_points;
+                  m_boxPoints(0, col) = -m_xWallsLimit + x_wall_cell_length * x;
+                  m_boxPoints(1, col) = -m_yWallsLimit;
+                  m_boxPoints(2, col) = -m_zWallsLimit + z_wall_cell_length * z;
               }
           }
 
@@ -457,84 +397,40 @@
           {
               for (int y = 0; y < face_grid_length; y++)
               {
-                  // Intialize positive wall points
-                  int col1 = x * face_grid_length + y + 4 * num_face_points;
-                  m_boxPoints(0, col1) = -m_xWallsLimit + x_wall_cell_length * x;
-                  m_boxPoints(1, col1) = -m_yWallsLimit + y_wall_cell_length * y;
-                  m_boxPoints(2, col1) = m_zWallsLimit;
+                  // Initialize positive wall points
+                  int col = x * face_grid_length + y + 4 * num_face_points;
+                  m_boxPoints(0, col) = -m_xWallsLimit + x_wall_cell_length * x;
+                  m_boxPoints(1, col) = -m_yWallsLimit + y_wall_cell_length * y;
+                  m_boxPoints(2, col) = m_zWallsLimit;
 
-                  // Intialize negative wall points
-                  int col2 = x * face_grid_length + y + 5 * num_face_points;
-                  m_boxPoints(0, col2) = -m_xWallsLimit + x_wall_cell_length * x;
-                  m_boxPoints(1, col2) = -m_yWallsLimit + y_wall_cell_length * y;
-                  m_boxPoints(2, col2) = -m_zWallsLimit;
+                  // Initialize negative wall points
+                  col += num_face_points;
+                  m_boxPoints(0, col) = -m_xWallsLimit + x_wall_cell_length * x;
+                  m_boxPoints(1, col) = -m_yWallsLimit + y_wall_cell_length * y;
+                  m_boxPoints(2, col) = -m_zWallsLimit;
               }
           }
 
-          for (int x = 0; x < face_grid_length - 1; x++)
+          // Initialize triangle indices
+          for (int n = 0; n < 6; n++)
           {
-              for (int y = 0; y < face_grid_length - 1; y++)
+              for (int i = 0; i < face_grid_length - 1; i++)
               {
-                  // Intialize positive wall faces
-                  int cell_ind1 = (x * (face_grid_length - 1) + y) * 2 + 4 * num_face_faces;
-                  int offset1 = x * face_grid_length + y + 4 * num_face_points;
+                  for (int j = 0; j < face_grid_length - 1; j++)
+                  {
+                      int cell_ind = (i * (face_grid_length - 1) + j) * 2 + n * num_face_faces;
+                      int index = i * face_grid_length + j + n * num_face_points;
 
-                  box_indices(0, cell_ind1) = x * face_grid_length + y + offset1;
-                  box_indices(1, cell_ind1) = (x + 1) * face_grid_length + y + offset1;
-                  box_indices(2, cell_ind1) = x * face_grid_length + (y + 1) + offset1;
+                      box_indices(0, cell_ind) = index;
+                      box_indices(1, cell_ind) = index + face_grid_length;
+                      box_indices(2, cell_ind) = index + 1;
 
-                  box_indices(0, cell_ind1 + 1) = (x + 1) * face_grid_length + y + offset1;
-                  box_indices(1, cell_ind1 + 1) = (x + 1) * face_grid_length + (y + 1) + offset1;
-                  box_indices(2, cell_ind1 + 1) = x * face_grid_length + (y + 1) + offset1;
-
-                  // Intialize negative wall faces
-                  int cell_ind2 = (x * (face_grid_length - 1) + y) * 2 + 5 * num_face_faces;
-                  int offset2 = x * face_grid_length + y + 5 * num_face_points;
-
-                  box_indices(0, cell_ind2) = x * face_grid_length + y + offset2;
-                  box_indices(1, cell_ind2) = (x + 1) * face_grid_length + y + offset2;
-                  box_indices(2, cell_ind2) = x * face_grid_length + (y + 1) + offset2;
-
-                  box_indices(0, cell_ind2 + 1) = (x + 1) * face_grid_length + y + offset2;
-                  box_indices(1, cell_ind2 + 1) = (x + 1) * face_grid_length + (y + 1) + offset2;
-                  box_indices(2, cell_ind2 + 1) = x * face_grid_length + (y + 1) + offset2;
-              }
-          }
-
-          /*int i = 0;
-          for (int x = -m_xWallsLimit; x <= m_xWallsLimit; x += 2 * m_xWallsLimit) {
-              for (int y = -m_yWallsLimit; y <= m_yWallsLimit; y += 2 * m_yWallsLimit) {
-                  for (int z = -m_zWallsLimit; z <= m_zWallsLimit; z += 2 * m_zWallsLimit) {
-                      m_boxPoints.col(i++) << x, y, z;
+                      box_indices(0, cell_ind + 1) = index + face_grid_length;
+                      box_indices(1, cell_ind + 1) = index + face_grid_length + 1;
+                      box_indices(2, cell_ind + 1) = index + 1;
                   }
               }
-          }*/
-
-          /*for (int x = 0; x < box_indices.cols(); x++) {
-              box_indices.col(x) <<
-          }*/
-
-          /*m_boxPoints.col(0) << -m_xWallsLimit,  m_yWallsLimit,  m_zWallsLimit;
-          m_boxPoints.col(1) << -m_xWallsLimit,  m_yWallsLimit, -m_zWallsLimit;
-          m_boxPoints.col(2) <<  m_xWallsLimit,  m_yWallsLimit, -m_zWallsLimit;
-          m_boxPoints.col(3) <<  m_xWallsLimit,  m_yWallsLimit,  m_zWallsLimit;
-          m_boxPoints.col(4) << -m_xWallsLimit, -m_yWallsLimit,  m_zWallsLimit;
-          m_boxPoints.col(5) << -m_xWallsLimit, -m_yWallsLimit, -m_zWallsLimit;
-          m_boxPoints.col(6) <<  m_xWallsLimit, -m_yWallsLimit, -m_zWallsLimit;
-          m_boxPoints.col(7) <<  m_xWallsLimit, -m_yWallsLimit,  m_zWallsLimit;
-
-          box_indices.col( 0) << 0, 1, 3;
-          box_indices.col( 1) << 3, 2, 1;
-          box_indices.col( 2) << 3, 2, 6;
-          box_indices.col( 3) << 6, 7, 3;
-          box_indices.col( 4) << 7, 6, 5;
-          box_indices.col( 5) << 5, 4, 7;
-          box_indices.col( 6) << 4, 5, 1;
-          box_indices.col( 7) << 1, 0, 4;
-          box_indices.col( 8) << 4, 0, 3;
-          box_indices.col( 9) << 3, 7, 4;
-          box_indices.col(10) << 5, 6, 2;
-          box_indices.col(11) << 2, 1, 5;*/
+          }
 
           m_numBoxFaces = num_box_faces;
           mBoxShader.bind();
@@ -855,7 +751,7 @@
               "out vec4 color;\n"
 
               "bool is_on_wall(int axis, float walls_limit) {\n"
-              "    return abs(frag_position[axis] - walls_limit) < 1.5 || abs(frag_position[axis] + walls_limit) < 1.5;\n"
+              "    return abs(frag_position[axis] - walls_limit) < 5e-2 || abs(frag_position[axis] + walls_limit) < 5e-2;\n"
               "}\n"
 
               "void main() {\n"
@@ -863,9 +759,8 @@
               "    bool is_on_y_wall = is_on_wall(1, y_walls_limit);\n"
               "    bool is_on_z_wall = is_on_wall(2, z_walls_limit);\n"
               "    bool is_edge = (is_on_x_wall && is_on_y_wall) || (is_on_x_wall && is_on_z_wall) || (is_on_y_wall && is_on_z_wall);\n"
-              //"    color = is_edge ? vec4(greenColor, 1) : vec4(0);\n"
-              "    color = is_edge ? vec4(greenColor, 1.0) : vec4(1, 0.5, 0.5, 0.1);\n"
-              //m"    color = vec4(greenColor, 1);\n"
+              "    color = is_edge ? vec4(greenColor, 1) : vec4(0);\n"
+              //"    color = is_edge ? vec4(greenColor, 1) : vec4(1, 0.5, 0.5, 0.1);\n"
               "}"
           );
 
