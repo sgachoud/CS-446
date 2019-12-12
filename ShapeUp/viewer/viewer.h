@@ -343,7 +343,7 @@
 
       void boxProcess() {
         // Initialize box geom and shader
-          int face_grid_length = 5;
+          int face_grid_length = 2;
           int num_face_points = face_grid_length * face_grid_length;
           int num_face_faces = (face_grid_length - 1) * (face_grid_length - 1) * 2;
           int num_box_faces = num_face_faces * 6;
@@ -751,7 +751,7 @@
               "out vec4 color;\n"
 
               "bool is_on_wall(int axis, float walls_limit) {\n"
-              "    return abs(frag_position[axis] - walls_limit) < 5e-2 || abs(frag_position[axis] + walls_limit) < 5e-2;\n"
+              "    return abs(frag_position[axis] - walls_limit) < 1e-1 || abs(frag_position[axis] + walls_limit) < 1e-1;\n"
               "}\n"
 
               "void main() {\n"
@@ -760,7 +760,6 @@
               "    bool is_on_z_wall = is_on_wall(2, z_walls_limit);\n"
               "    bool is_edge = (is_on_x_wall && is_on_y_wall) || (is_on_x_wall && is_on_z_wall) || (is_on_y_wall && is_on_z_wall);\n"
               "    color = is_edge ? vec4(greenColor, 1) : vec4(0);\n"
-              //"    color = is_edge ? vec4(greenColor, 1) : vec4(1, 0.5, 0.5, 0.1);\n"
               "}"
           );
 
