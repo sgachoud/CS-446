@@ -304,7 +304,7 @@ public:
 		// Initialize Point Explosion shader
 		MatrixXf sphere_v_color(3, m_pe_sphere.getNumFace());
 		sphere_v_color.setZero();
-		for (int i = 0; i < m_pe_sphere.getNumFace(); i++) sphere_v_color.col(i) = Vector3f(0.98, 0.59, 0.04);
+		for (int i = 0; i < m_pe_sphere.getNumFace(); i++) sphere_v_color.col(i) = Vector3f(1.0, 0.0, 0.0);
 		mPointExplosionShader.bind();
 		mPointExplosionShader.uploadIndices(m_pe_sphere.getSphereIndicesGrid());
 		mPointExplosionShader.uploadAttrib("position", m_pe_sphere.getSpherePointsGrid());
