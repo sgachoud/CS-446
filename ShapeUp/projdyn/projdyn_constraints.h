@@ -62,7 +62,7 @@ namespace ProjDyn {
 
 		/** Call after solving local-global algorithm such that the constraint can be updated
 		*/
-		virtual void update(const Positions& positions){}
+		virtual void update(const Positions& positions, bool plasticity = false){}
     
         /** Reset the updated constraints
          */
@@ -181,12 +181,14 @@ namespace ProjDyn {
             projection.row(m_constraint_id) *= m_rest_length;
         }
         
-        virtual void update(const Positions& positions) override {
-            Scalar plasticity_threshold = 0.3;
-            Scalar plasticity_factor = 0.5;
-            Scalar new_rest_length = (positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0])).norm();
-            if (new_rest_length - m_rest_length > plasticity_threshold) {
-                m_rest_length += (new_rest_length - m_rest_length) * plasticity_factor;
+        virtual void update(const Positions& positions, bool plasticity) override {
+            if (plasticity) {
+                Scalar plasticity_threshold = 0.1;
+                Scalar plasticity_factor = 0.5;
+                Scalar new_rest_length = (positions.row(m_vertex_indices[1]) - positions.row(m_vertex_indices[0])).norm();
+                if (new_rest_length - m_rest_length > plasticity_threshold) {
+                    m_rest_length += (new_rest_length - m_rest_length) * plasticity_factor;
+                }
             }
         }
         
@@ -444,7 +446,7 @@ namespace ProjDyn {
 				projection(m_constraint_id, j) = m_prev_pos(j);
 			}
 		}
-		virtual void update(const Positions& positions) override {
+		virtual void update(const Positions& positions, bool plasticity) override {
 			m_prev_pos = positions.row(m_vert_ind);
 		}
 
@@ -760,21 +762,23 @@ namespace ProjDyn {
             projection.row(m_constraint_id) = meanCurvatureVector;
         }
 
-        virtual void update(const Positions& positions) override {
-            Scalar plasticity_threshold = 3;
-            Scalar plasticity_factor = 0.2;
-            
-            Eigen::Matrix<Scalar, 1, 3> meanCurvatureVector;
-            meanCurvatureVector.setZero();
-            int nb = 0;
-            for (Edge e : m_vertex_star) {
-                meanCurvatureVector += (positions.row(m_vertex_indices[0]) - positions.row(e.v2)) * m_cotan_weights(nb);
-                nb++;
-            }
-            Scalar norm = meanCurvatureVector.norm();
-            
-            if (abs(m_rest_mean_curv - norm) > plasticity_factor) {
-                m_rest_mean_curv += (norm - m_rest_mean_curv) * plasticity_factor;
+        virtual void update(const Positions& positions, bool plasticity) override {
+            if (plasticity){
+                Scalar plasticity_threshold = 100;
+                Scalar plasticity_factor = 0.00001;
+                
+                Eigen::Matrix<Scalar, 1, 3> meanCurvatureVector;
+                meanCurvatureVector.setZero();
+                int nb = 0;
+                for (Edge e : m_vertex_star) {
+                    meanCurvatureVector += (positions.row(m_vertex_indices[0]) - positions.row(e.v2)) * m_cotan_weights(nb);
+                    nb++;
+                }
+                Scalar norm = meanCurvatureVector.norm();
+                
+                if (abs(m_rest_mean_curv - norm) > plasticity_factor) {
+                    //m_rest_mean_curv += (norm - m_rest_mean_curv) * plasticity_factor;
+                }
             }
         }
         
