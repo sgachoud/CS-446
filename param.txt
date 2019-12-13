@@ -1,0 +1,12 @@
+eight mesh initial position :
+	-center : (0,0,0)
+	-holes : (0,0,±0.25)
+	-force 25 is good
+
+eight mesh on the floor :
+	-center : (0,-0.45,0)
+	-holes : (0,-0.45,±0.25)
+	-force 15 is good
+
+sphere on the floor :
+	-center : (0,-2.25,0)
