@@ -266,7 +266,7 @@
 
           MatrixXf vertex_color(3, n_vertices);
           vertex_color.setZero();
-          for (int i = 0; i < n_vertices; i++) vertex_color.col(i) = Vector3f(0.98, 0.59, 0.04);
+          for (int i = 0; i < n_vertices; i++) vertex_color.col(i) = Vector3f(0.1, 0.89, 0.93);
 
           mShader.bind();
           mShader.uploadIndices(indices);
@@ -721,49 +721,7 @@
               "}"
           );
 
-          mBoxShader.init(
-              "box_shader",
-
-              /* Vertex shader */
-              "#version 330\n"
-              "uniform mat4 MV;\n"
-              "uniform mat4 P;\n"
-
-              "in vec3 position;\n"
-
-              "out vec3 frag_position;\n"
-
-              "void main() {\n"
-              "    gl_Position = P * MV * vec4(position, 1.0);\n"
-              "    frag_position = position;\n"
-              "}",
-
-              /* Fragment shader */
-              "#version 330\n"
-
-              "uniform vec3 greenColor;\n"
-              "uniform float x_walls_limit;\n"
-              "uniform float y_walls_limit;\n"
-              "uniform float z_walls_limit;\n"
-
-              "in vec3 frag_position;\n"
-
-              "out vec4 color;\n"
-
-              "bool is_on_wall(int axis, float walls_limit) {\n"
-              "    return abs(frag_position[axis] - walls_limit) < 1e-1 || abs(frag_position[axis] + walls_limit) < 1e-1;\n"
-              "}\n"
-
-              "void main() {\n"
-              "    bool is_on_x_wall = is_on_wall(0, x_walls_limit);\n"
-              "    bool is_on_y_wall = is_on_wall(1, y_walls_limit);\n"
-              "    bool is_on_z_wall = is_on_wall(2, z_walls_limit);\n"
-              "    bool is_edge = (is_on_x_wall && is_on_y_wall) || (is_on_x_wall && is_on_z_wall) || (is_on_y_wall && is_on_z_wall);\n"
-              "    color = is_edge ? vec4(greenColor, 1) : vec4(0);\n"
-              "}"
-          );
-
-      		mPointExplosionShader.init(
+          mPointExplosionShader.init(
       			"point_explosion_shader",
 
       			/* Vertex shader */
@@ -819,6 +777,48 @@
       			"    }\n"
       			"    color = vec4(c, 1.0);\n"
       			"}"
+          );
+
+          mBoxShader.init(
+              "box_shader",
+
+              /* Vertex shader */
+              "#version 330\n"
+              "uniform mat4 MV;\n"
+              "uniform mat4 P;\n"
+
+              "in vec3 position;\n"
+
+              "out vec3 frag_position;\n"
+
+              "void main() {\n"
+              "    gl_Position = P * MV * vec4(position, 1.0);\n"
+              "    frag_position = position;\n"
+              "}",
+
+              /* Fragment shader */
+              "#version 330\n"
+
+              "uniform vec3 greenColor;\n"
+              "uniform float x_walls_limit;\n"
+              "uniform float y_walls_limit;\n"
+              "uniform float z_walls_limit;\n"
+
+              "in vec3 frag_position;\n"
+
+              "out vec4 color;\n"
+
+              "bool is_on_wall(int axis, float walls_limit) {\n"
+              "    return abs(frag_position[axis] - walls_limit) < 1e-1 || abs(frag_position[axis] + walls_limit) < 1e-1;\n"
+              "}\n"
+
+              "void main() {\n"
+              "    bool is_on_x_wall = is_on_wall(0, x_walls_limit);\n"
+              "    bool is_on_y_wall = is_on_wall(1, y_walls_limit);\n"
+              "    bool is_on_z_wall = is_on_wall(2, z_walls_limit);\n"
+              "    bool is_edge = (is_on_x_wall && is_on_y_wall) || (is_on_x_wall && is_on_z_wall) || (is_on_y_wall && is_on_z_wall);\n"
+              "    color = is_edge ? vec4(greenColor, 1) : vec4(0);\n"
+              "}"
           );
       }
 
@@ -941,6 +941,19 @@
               mFloorShader.drawIndexed(GL_TRIANGLES, 0, m_numFloorFaces);
           }
 
+            if (m_showPointExplosion) {
+      			mPointExplosionShader.bind();
+      			if (m_sphereChanged) {
+      				mPointExplosionShader.uploadAttrib("position", m_pe_sphere.getSpherePointsGrid());
+      				m_sphereChanged = false;
+      			}
+      			mPointExplosionShader.setUniform("MV", mv);
+      			mPointExplosionShader.setUniform("P", p);
+      			mPointExplosionShader.setUniform("intensity", colors);
+      			mPointExplosionShader.drawIndexed(GL_TRIANGLES, 0, m_pe_sphere.getNumFace());
+      		}
+
+
           if (m_showBox) {
               mBoxShader.bind();
               if (m_boxLimitsChanged) {
@@ -956,18 +969,6 @@
               mBoxShader.setUniform("z_walls_limit", m_zWallsLimit);
               mBoxShader.drawIndexed(GL_TRIANGLES, 0, m_numBoxFaces);
           }
-
-      		if (m_showPointExplosion) {
-      			mPointExplosionShader.bind();
-      			if (m_sphereChanged) {
-      				mPointExplosionShader.uploadAttrib("position", m_pe_sphere.getSpherePointsGrid());
-      				m_sphereChanged = false;
-      			}
-      			mPointExplosionShader.setUniform("MV", mv);
-      			mPointExplosionShader.setUniform("P", p);
-      			mPointExplosionShader.setUniform("intensity", colors);
-      			mPointExplosionShader.drawIndexed(GL_TRIANGLES, 0, m_pe_sphere.getNumFace());
-      		}
 
           if (true) {
               mSelectedVertexShader.bind();

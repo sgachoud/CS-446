@@ -429,10 +429,16 @@ namespace ProjDyn {
 		void addYWallsConstraints(Scalar weightMultiplier, Scalar forceFactor = 1.) {
 			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
 			std::vector<ConstraintPtr> wallCons;
+			std::vector<ConstraintPtr> frictionCons;//added for friction
 			for (Index v = 0; v < m_num_verts; v++) {
-				wallCons.push_back(std::make_shared<YWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, m_yWallsLimit, forceFactor));
+				std::shared_ptr<YWallsConstraint> wallConstraint = 
+					std::make_shared<YWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, m_yWallsLimit, forceFactor);
+				wallCons.push_back(wallConstraint);
+				frictionCons.push_back(//added for friction
+					std::make_shared<FrictionConstraint>(v, voronoiAreas(v) * weightMultiplier, getPositions(), wallConstraint));
 			}
 			addConstraints(std::make_shared<ConstraintGroup>("Y Walls", wallCons, 1));
+			addConstraints(std::make_shared<ConstraintGroup>("Floor Friction", frictionCons, 1));//added for friction
 			m_system_init = false;
 		}
 
