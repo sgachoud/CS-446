@@ -224,6 +224,10 @@ namespace ProjDyn {
 			// Set the floor below the mesh at a distance corresponding to twice the height
 			// of the bounding box
 			m_floorHeight = m_positions.col(1).minCoeff() - (m_positions.col(1).maxCoeff() - m_positions.col(1).minCoeff()) * 2;
+			
+			m_xWallsLimit = 1.25 * ((m_positions.col(0).maxCoeff() - m_positions.col(0).minCoeff()) * 2 - m_positions.col(0).minCoeff());
+			m_yWallsLimit = -1.25 * m_floorHeight;
+			m_zWallsLimit = 1.25 * ((m_positions.col(2).maxCoeff() - m_positions.col(2).minCoeff()) * 2 - m_positions.col(2).minCoeff());
 			meshChanged();
 		}
 
@@ -415,8 +419,59 @@ namespace ProjDyn {
 			m_system_init = false;
 		}
 
+		// Add X walls contraints to all points:
+		void addXWallsConstraints(Scalar weightMultiplier, Scalar forceFactor = 1.) {
+			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
+			std::vector<ConstraintPtr> wallCons;
+			for (Index v = 0; v < m_num_verts; v++) {
+				wallCons.push_back(std::make_shared<XWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, m_xWallsLimit, forceFactor));
+			}
+			addConstraints(std::make_shared<ConstraintGroup>("X Walls", wallCons, 1));
+			m_system_init = false;
+		}
+
+		// Add Y walls contraints to all points:
+		void addYWallsConstraints(Scalar weightMultiplier, Scalar forceFactor = 1.) {
+			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
+			std::vector<ConstraintPtr> wallCons;
+			std::vector<ConstraintPtr> frictionCons;//added for friction
+			for (Index v = 0; v < m_num_verts; v++) {
+				std::shared_ptr<YWallsConstraint> wallConstraint = 
+					std::make_shared<YWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, m_yWallsLimit, forceFactor);
+				wallCons.push_back(wallConstraint);
+				frictionCons.push_back(//added for friction
+					std::make_shared<FrictionConstraint>(v, voronoiAreas(v) * weightMultiplier, getPositions(), wallConstraint));
+			}
+			addConstraints(std::make_shared<ConstraintGroup>("Y Walls", wallCons, 1));
+			addConstraints(std::make_shared<ConstraintGroup>("Floor Friction", frictionCons, 1));//added for friction
+			m_system_init = false;
+		}
+
+		// Add Z walls contraints to all points:
+		void addZWallsConstraints(Scalar weightMultiplier, Scalar forceFactor = 1.) {
+			Vector voronoiAreas = vertexMasses(getInitialPositions(), getTriangles());
+			std::vector<ConstraintPtr> wallCons;
+			for (Index v = 0; v < m_num_verts; v++) {
+				wallCons.push_back(std::make_shared<ZWallsConstraint>(v, voronoiAreas(v) * weightMultiplier, m_zWallsLimit, forceFactor));
+			}
+			addConstraints(std::make_shared<ConstraintGroup>("Z Walls", wallCons, 1));
+			m_system_init = false;
+		}
+
         Scalar getFloorHeight() {
             return m_floorHeight;
+        }
+
+		Scalar getXWallsLimit() {
+            return m_xWallsLimit;
+        }
+
+		Scalar getYWallsLimit() {
+            return m_yWallsLimit;
+        }
+		
+		Scalar getZWallsLimit() {
+            return m_zWallsLimit;
         }
 
 
@@ -494,6 +549,11 @@ namespace ProjDyn {
 
 		// y-Coordinate of the floor plane, used for preliminary collisions
 		Scalar m_floorHeight = 0;
+
+		// Coordinates of the bounding box, used for preliminary collisions
+		Scalar m_xWallsLimit = 0;
+		Scalar m_yWallsLimit = 0;
+		Scalar m_zWallsLimit = 0;
 
         // Toggles "Dynamic mode", i.e. if set to true, this object is used to simulate
         // an object under external forces and momentum, if set to false, momentum and
