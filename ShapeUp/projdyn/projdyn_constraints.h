@@ -764,8 +764,8 @@ namespace ProjDyn {
 
         virtual void update(const Positions& positions, bool plasticity) override {
             if (plasticity){
-                Scalar plasticity_threshold = 100;
-                Scalar plasticity_factor = 0.00001;
+                Scalar plasticity_threshold = 10;
+                Scalar plasticity_factor = 0.1;
                 
                 Eigen::Matrix<Scalar, 1, 3> meanCurvatureVector;
                 meanCurvatureVector.setZero();
@@ -777,7 +777,7 @@ namespace ProjDyn {
                 Scalar norm = meanCurvatureVector.norm();
                 
                 if (abs(m_rest_mean_curv - norm) > plasticity_factor) {
-                    //m_rest_mean_curv += (norm - m_rest_mean_curv) * plasticity_factor;
+                    m_rest_mean_curv += (norm - m_rest_mean_curv) * plasticity_factor;
                 }
             }
         }
